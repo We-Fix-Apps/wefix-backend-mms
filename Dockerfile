@@ -9,14 +9,14 @@ COPY package.json yarn.lock* package-lock.json* ./
 # Install dependencies
 RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
     elif [ -f package-lock.json ]; then npm ci; \
-    else echo "Lockfile not found." && exit 1; \
+    else yarn install; \
     fi
 
 # Copy source code
 COPY . .
 
 # Build TypeScript
-RUN npx tsc
+RUN yarn build
 
 # Production stage
 FROM node:20-alpine AS production
@@ -26,16 +26,17 @@ WORKDIR /app
 # Copy package files
 COPY package.json yarn.lock* package-lock.json* ./
 
-# Install all dependencies (including dev dependencies for scripts like flush, seed, etc.)
+# Install all dependencies (including dev dependencies for scripts)
 RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
     elif [ -f package-lock.json ]; then npm ci; \
-    else echo "Lockfile not found." && exit 1; \
+    else yarn install; \
     fi
 
 # Copy built files and source code from builder (for running scripts)
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/src ./src
+# Create public directory (backend-mms may not have one)
+RUN mkdir -p ./public
 
 # Expose port
 EXPOSE 4001
