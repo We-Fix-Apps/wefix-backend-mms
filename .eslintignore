@@ -1,0 +1,6 @@
+jest.setup.ts
+src/**/*.d.ts
+*.js
+.env
+build
+coverage

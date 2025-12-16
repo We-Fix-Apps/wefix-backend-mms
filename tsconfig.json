@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "lib": ["es2020"],
+    "target": "es2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src/**/*.ts","jest.setup.js", "public/**/*"],
+  "exclude": ["node_modules", "**/*.test.tsx", "jest.setup.js", ".eslintrc.cjs"],
+}
