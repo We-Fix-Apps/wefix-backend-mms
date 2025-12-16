@@ -52,13 +52,13 @@ class UserRepository {
       // Update the user's FCM token and device ID
       await user.update({ fcmToken, deviceId });
 
-      return user;
+      return user as UserOrm;
     } catch (error) {
       throw new Error(`Authentication failed: ${error.message}`);
     }
   }
 
-  public async _validateRefreshToken(userEmail: string): Promise<User | null> {
+  public async _validateRefreshToken(userEmail: string): Promise<UserOrm | null> {
     try {
       const user = await User.findOne({ where: { email: userEmail } });
 
@@ -66,7 +66,7 @@ class UserRepository {
         return null;
       }
 
-      return user;
+      return user as UserOrm;
     } catch (error) {
       throw new Error(`Error validating refresh token: ${error.message}`);
     }
@@ -75,20 +75,16 @@ class UserRepository {
   private async _getUsers(where: FindOptions): Promise<UserOrm[]> {
     try {
       const users = await User.findAll(where);
-      return users;
+      return users as UserOrm[];
     } catch (error) {
       throw new Error(`Failed to retrieve users: ${error.message}`);
     }
   }
 
-  private async _getStudents(): Promise<User[]> {
+  private async _getStudents(where: FindOptions): Promise<UserOrm[]> {
     try {
-      const students = await User.findAll({
-        where: {
-          userRole: UserRoles.STUDENT,
-        },
-      });
-      return students;
+      const students = await User.findAll(where);
+      return students as UserOrm[];
     } catch (error) {
       throw new Error(`Error fetching students: ${error.message}`);
     }
@@ -106,7 +102,7 @@ class UserRepository {
         throw new Error('User not found');
       }
 
-      return user;
+      return user as UserOrm;
     } catch (error) {
       throw new Error('Unable to authenticate user');
     }
@@ -114,8 +110,8 @@ class UserRepository {
 
   private async _getUserById(id: string): Promise<UserOrm | null> {
     try {
-      const user = await User.findOne({ where: { id } });
-      return user;
+      const user = await User.findOne({ where: { id: parseInt(id) } });
+      return user as UserOrm | null;
     } catch (error) {
       throw new Error('Unable to authenticate user');
     }
@@ -127,46 +123,59 @@ class UserRepository {
     fcmToken: string
   ): Promise<UserOrm> {
     try {
+      if (!deviceId || !fcmToken) {
+        throw new Error('Device ID and FCM token are required');
+      }
+
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(userData.password, salt);
 
-      if (!deviceId) {
-        return null;
-      }
-
-      if (!fcmToken) {
-        return null;
-      }
-
-      const userCreationData = {
+      const userCreationData: any = {
         email: userData.email.toLocaleLowerCase(),
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        userNumber: userData.userNumber,
+        fullName: userData.fullName,
+        fullNameEnglish: userData.fullNameEnglish,
+        userNumber: userData.userNumber || `USR${Date.now()}`,
         password: hashedPassword,
-        userRole: userData.userRole,
-        fcmToken: userData.fcmToken,
-        deviceId: userData.deviceId,
+        userRoleId: userData.userRoleId || 1,
+        fcmToken: fcmToken,
+        deviceId: deviceId,
       };
 
+      if (userData.mobileNumber) {
+        userCreationData.mobileNumber = userData.mobileNumber;
+      }
+      if (userData.countryCode) {
+        userCreationData.countryCode = userData.countryCode;
+      }
+      if (userData.username) {
+        userCreationData.username = userData.username;
+      }
+      if (userData.companyId) {
+        userCreationData.companyId = userData.companyId;
+      }
+
       const newUser = await User.create(userCreationData);
-      return newUser;
+      return newUser as UserOrm;
     } catch (error) {
       throw new Error(`Failed to create user: ${error.message}`);
     }
   }
 
-  private async _updateUserById(id: string, updateData: Partial<UserOrm>): Promise<UserOrm | null> {
+  private async _updateUserById(id: string, updateData: UpdateUserInput): Promise<UserOrm | null> {
     try {
-      const user = await User.findOne({ where: { id } });
+      const user = await User.findOne({ where: { id: parseInt(id) } });
       if (user) {
+        const updatePayload: any = { ...updateData };
         if (updateData.password) {
           const salt = await bcrypt.genSalt(10);
-          updateData.password = await bcrypt.hash(updateData.password, salt);
+          updatePayload.password = await bcrypt.hash(updateData.password, salt);
+        }
+        if (updateData.email) {
+          updatePayload.email = updateData.email.toLowerCase();
         }
 
-        await user.update(updateData);
-        return user;
+        await user.update(updatePayload);
+        return user as UserOrm;
       }
       return null;
     } catch (error) {
@@ -176,7 +185,7 @@ class UserRepository {
 
   private async _deleteUserById(id: string): Promise<boolean> {
     try {
-      const deleted = await User.destroy({ where: { id } });
+      const deleted = await User.destroy({ where: { id: parseInt(id) } });
       return deleted > 0;
     } catch (error) {
       throw new Error(`Failed to delete user with ID ${id}: ${error.message}`);

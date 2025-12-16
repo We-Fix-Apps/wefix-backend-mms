@@ -1,5 +1,3 @@
-import { Model } from 'sequelize-typescript';
-
 export enum UserRoles {
   ADMIN = 'Admin',
   TEACHER = 'Teacher',
@@ -7,39 +5,54 @@ export enum UserRoles {
   DOCTOR = 'Doctor',
 }
 
-export interface UserOrm extends Model {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+export interface UserOrm {
+  id: number;
+  email: string | null;
   fullName: string;
+  fullNameEnglish: string;
   userNumber: string;
   password: string;
-  userRole: UserRoles;
+  userRoleId: number;
   fcmToken: string;
   deviceId: string;
+  mobileNumber: string | null;
+  countryCode: string | null;
+  username: string | null;
+  companyId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  isDeleted: boolean;
 }
 
 export interface CreateUserInput {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
+  fullNameEnglish: string;
   userNumber?: string;
-  userRole?: UserRoles;
+  userRoleId?: number;
   fcmToken?: string;
   deviceId?: string;
+  mobileNumber?: string;
+  countryCode?: string;
+  username?: string;
+  companyId?: number;
 }
 
 export interface UpdateUserInput {
   email?: string;
   password?: string;
-  firstName?: string;
-  lastName?: string;
+  fullName?: string;
+  fullNameEnglish?: string;
   userNumber?: string;
-  userRole?: UserRoles;
+  userRoleId?: number;
   fcmToken?: string;
   deviceId?: string;
+  mobileNumber?: string;
+  countryCode?: string;
+  username?: string;
+  companyId?: number;
 }
 
 export interface LoginInput {

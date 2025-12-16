@@ -4,7 +4,7 @@ import { BelongsTo, Column, CreatedAt, ForeignKey, Model, Table, UpdatedAt } fro
 import { Lookup } from './lookup.model';
 import { User } from './user.model';
 
-import { CompanyStatus } from '../../graphql/service/Company/typedefs/Company/enums/Company.enums';
+import { CompanyStatus } from './enums';
 import { getDate, getIsoTimestamp, setDate, toLowerCase } from '../../lib';
 
 @Table({
@@ -89,7 +89,7 @@ export class Company extends Model {
   @Column({
     allowNull: false,
     defaultValue: CompanyStatus.ACTIVE,
-    type: DataTypes.ENUM({ values: Object.values(CompanyStatus) }),
+    type: DataTypes.ENUM(...Object.values(CompanyStatus)),
   })
   public isActive: CompanyStatus;
 

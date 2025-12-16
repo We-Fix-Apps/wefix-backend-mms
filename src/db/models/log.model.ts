@@ -4,7 +4,7 @@ import { BelongsTo, Column, CreatedAt, ForeignKey, Model, Table, UpdatedAt } fro
 
 import { User } from './user.model'
 
-import { Actions } from '../../graphql/service/Log/typedefs/logEnums'
+import { Actions } from './enums'
 import { getDate, getIsoTimestamp, setDate } from '../../lib'
 
 @Table({
@@ -23,7 +23,7 @@ export class Log extends Model {
   @Column({
     allowNull: false,
     comment: 'Action type for logs: in, out, break, leave',
-    type: DataTypes.ENUM({ values: Object.values(Actions) }),
+    type: DataTypes.ENUM(...Object.values(Actions)),
   })
   public action_type: Actions
 
