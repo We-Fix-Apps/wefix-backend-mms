@@ -194,6 +194,69 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
 });
 
 /**
+ * Get ticket details by ID for the logged-in company admin's company
+ */
+export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user;
+  const ticketId = parseInt(req.params.id);
+
+  if (!user) {
+    throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
+  }
+
+  if (isNaN(ticketId)) {
+    throw new AppError('Invalid ticket ID', 400, 'VALIDATION_ERROR');
+  }
+
+  const companyId = user.companyId;
+
+  if (!companyId) {
+    throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Fetch ticket with all related data
+  const ticket = await Ticket.findOne({
+    where: {
+      id: ticketId,
+      companyId: companyId,
+      isDeleted: false,
+    },
+    include: [
+      {
+        model: Lookup,
+        as: 'ticketTypeLookup',
+        required: false,
+      },
+      {
+        model: Lookup,
+        as: 'ticketStatusLookup',
+        required: false,
+      },
+      {
+        model: Lookup,
+        as: 'mainServiceLookup',
+        required: false,
+      },
+      {
+        model: Lookup,
+        as: 'processLookup',
+        required: false,
+      },
+    ],
+  });
+
+  if (!ticket) {
+    throw new AppError('Ticket not found or access denied', 404, 'NOT_FOUND');
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Ticket retrieved successfully',
+    data: formatTicket(ticket),
+  });
+});
+
+/**
  * Helper function to format ticket for response
  */
 function formatTicket(ticket: Ticket) {
@@ -235,6 +298,16 @@ function formatTicket(ticket: Ticket) {
     havingFemaleEngineer: ticket.havingFemaleEngineer,
     withMaterial: ticket.withMaterial,
     tools: ticket.tools,
+    customerName: ticket.customerName,
+    process: ticket.processLookup
+      ? {
+          id: ticket.processLookup.id,
+          name: ticket.processLookup.name,
+          nameArabic: ticket.processLookup.nameArabic,
+        }
+      : null,
+    startTime: ticket.startTime,
+    endTime: ticket.endTime,
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
   };

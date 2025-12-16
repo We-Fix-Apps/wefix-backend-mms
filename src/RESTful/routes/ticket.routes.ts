@@ -7,6 +7,7 @@ const router = express.Router();
 // Protected routes - require authentication
 router.get('/', authenticateToken, ticketController.getCompanyTickets);
 router.get('/statistics', authenticateToken, ticketController.getTicketStatistics);
+router.get('/:id', authenticateToken, ticketController.getTicketById);
 
 export default router;
 
