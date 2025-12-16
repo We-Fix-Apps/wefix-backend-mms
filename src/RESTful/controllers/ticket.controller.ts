@@ -131,9 +131,28 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
     },
   });
 
-  const correctiveType = ticketTypes.find(t => t.name.toLowerCase() === 'corrective');
-  const preventiveType = ticketTypes.find(t => t.name.toLowerCase() === 'preventive');
-  const emergencyType = ticketTypes.find(t => t.name.toLowerCase() === 'emergency');
+  // Log all ticket types found for debugging
+  console.log(`All ticket types found:`, ticketTypes.map(t => ({ id: t.id, name: t.name, code: t.code })));
+
+  // Find ticket types by name (case-insensitive) - try multiple approaches
+  const correctiveType = ticketTypes.find(t => {
+    const name = t.name.toLowerCase().trim();
+    return name === 'corrective' || name === 'corrective maintenance' || t.code === 'CORR';
+  });
+  const preventiveType = ticketTypes.find(t => {
+    const name = t.name.toLowerCase().trim();
+    return name === 'preventive' || name === 'preventive maintenance' || t.code === 'PREV';
+  });
+  const emergencyType = ticketTypes.find(t => {
+    const name = t.name.toLowerCase().trim();
+    return name === 'emergency' || name === 'emergency maintenance' || t.code === 'EMRG';
+  });
+
+  console.log(`Ticket types found:`, {
+    corrective: correctiveType ? { id: correctiveType.id, name: correctiveType.name, code: correctiveType.code } : null,
+    preventive: preventiveType ? { id: preventiveType.id, name: preventiveType.name, code: preventiveType.code } : null,
+    emergency: emergencyType ? { id: emergencyType.id, name: emergencyType.name, code: emergencyType.code } : null,
+  });
 
   // Count tickets by type
   const correctiveCount = correctiveType
@@ -165,6 +184,21 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
         },
       })
     : 0;
+
+  // Get total count for verification
+  const totalCount = await Ticket.count({
+    where: {
+      companyId: companyId,
+      isDeleted: false,
+    },
+  });
+
+  console.log(`Ticket counts for company ${companyId}:`, {
+    corrective: correctiveCount,
+    preventive: preventiveCount,
+    emergency: emergencyCount,
+    total: totalCount,
+  });
 
   // Count by status
   const statusCounts: Record<string, number> = {};
