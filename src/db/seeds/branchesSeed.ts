@@ -1,0 +1,88 @@
+export const BRANCHES_DATA = [
+  // Branches for Company 1
+  {
+    address: 'King Abdullah Street, Building 15, Amman, Jordan',
+    branchNameArabic: 'الفرع الرئيسي - عمان',
+    branchNameEnglish: 'Main Branch - Amman',
+    branchTitle: 'Main Branch - Amman',
+    companyId: 1,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=31.9539,35.9106',
+  },
+  {
+    address: 'Queen Rania Street, Building 22, Irbid, Jordan',
+    branchNameArabic: 'فرع إربد',
+    branchNameEnglish: 'Irbid Branch',
+    branchTitle: 'Irbid Branch',
+    companyId: 1,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=32.5556,35.8469',
+  },
+  {
+    address: 'Prince Hamzah Street, Building 8, Aqaba, Jordan',
+    branchNameArabic: 'فرع العقبة',
+    branchNameEnglish: 'Aqaba Branch',
+    branchTitle: 'Aqaba Branch',
+    companyId: 1,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=29.5321,35.0063',
+  },
+  {
+    address: 'Al-Madina Al-Munawara Street, Building 44, Zarqa, Jordan',
+    branchNameArabic: 'فرع الزرقاء',
+    branchNameEnglish: 'Zarqa Branch',
+    branchTitle: 'Zarqa Branch',
+    companyId: 1,
+    isActive: false,
+    locationMap: 'https://maps.google.com/?q=32.0728,36.0881',
+  },
+
+  // Branches for Company 2
+  {
+    address: 'King Hussein Street, Building 30, Amman, Jordan',
+    branchNameArabic: 'المركز الرئيسي',
+    branchNameEnglish: 'Headquarters',
+    branchTitle: 'Headquarters',
+    companyId: 2,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=31.9454,35.9284',
+  },
+  {
+    address: 'Princess Basma Street, Building 12, Salt, Jordan',
+    branchNameArabic: 'فرع السلط',
+    branchNameEnglish: 'Salt Branch',
+    branchTitle: 'Salt Branch',
+    companyId: 2,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=32.0394,35.7272',
+  },
+
+  // Branches for Company 3
+  {
+    address: 'Airport Road, Building 55, Amman, Jordan',
+    branchNameArabic: 'الفرع المركزي',
+    branchNameEnglish: 'Central Branch',
+    branchTitle: 'Central Branch',
+    companyId: 3,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=31.9522,35.9263',
+  },
+  {
+    address: 'Gardens Street, Building 20, Amman, Jordan',
+    branchNameArabic: 'فرع الحدائق',
+    branchNameEnglish: 'Gardens Branch',
+    branchTitle: 'Gardens Branch',
+    companyId: 3,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=31.9500,35.9300',
+  },
+  {
+    address: 'University Street, Building 33, Amman, Jordan',
+    branchNameArabic: 'فرع الجامعة',
+    branchNameEnglish: 'University Branch',
+    branchTitle: 'University Branch',
+    companyId: 3,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=32.0137,35.8705',
+  },
+];

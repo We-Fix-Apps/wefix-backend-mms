@@ -1,4 +1,4 @@
-import { DataTypes, QueryInterface } from 'sequelize';
+import { QueryInterface } from 'sequelize';
 
 /**
  * Migration Template
@@ -33,12 +33,12 @@ import { DataTypes, QueryInterface } from 'sequelize';
  * Remove Index:
  *   await queryInterface.removeIndex('table_name', 'index_name');
  */
-export const up = async (queryInterface: QueryInterface) => {
+export const up = async (_queryInterface: QueryInterface) => {
   // TODO: Add your migration logic here
-  // Example: await queryInterface.addColumn('users', 'new_field', { type: DataTypes.STRING });
+  // Example: await _queryInterface.addColumn('users', 'new_field', { type: DataTypes.STRING });
 };
 
-export const down = async (queryInterface: QueryInterface) => {
+export const down = async (_queryInterface: QueryInterface) => {
   // TODO: Add your rollback logic here (reverse of up)
-  // Example: await queryInterface.removeColumn('users', 'new_field');
+  // Example: await _queryInterface.removeColumn('users', 'new_field');
 };

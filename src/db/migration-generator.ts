@@ -1,4 +1,4 @@
-import { DataTypes, QueryInterface, UUIDV4, literal } from 'sequelize';
+import { DataTypes, QueryInterface, UUIDV4 } from 'sequelize';
 import { Model, ModelCtor } from 'sequelize-typescript';
 
 /**
@@ -45,7 +45,7 @@ export class MigrationGenerator {
       downOperations.push(`  await queryInterface.dropTable('${tableName}');`);
     } else {
       // Table exists, compare columns
-      const { adds, removes, changes } = this.compareColumns(modelColumns, dbColumns);
+      const { adds, changes, removes } = this.compareColumns(modelColumns, dbColumns);
 
       // Add new columns
       for (const add of adds) {
@@ -129,7 +129,7 @@ export class MigrationGenerator {
       // Change existing columns
       for (const change of changes) {
         const dbCol = dbColumns[change.columnName];
-        const oldAllowNull = dbCol?.allowNull === true || dbCol?.allowNull === 'YES' || dbCol?.allowNull === null;
+        const _oldAllowNull = dbCol?.allowNull === true || dbCol?.allowNull === 'YES' || dbCol.allowNull === null;
         const newAllowNull = change.newColumn.allowNull !== false;
         
         // If changing to NOT NULL, populate data first (even if schema says NOT NULL, there might be NULLs from failed migrations)
@@ -196,7 +196,7 @@ export class MigrationGenerator {
       const columnName = underscored ? this.camelToSnake(key) : key;
       
       // Detect UUIDV4 default value
-      let defaultValue = attr.defaultValue;
+      let {defaultValue} = attr;
       if (defaultValue === DataTypes.UUIDV4 || 
           (defaultValue && defaultValue.toString && defaultValue.toString().includes('UUIDV4')) ||
           (attr.type && attr.type === DataTypes.UUID && attr.defaultValue === UUIDV4)) {
@@ -205,7 +205,7 @@ export class MigrationGenerator {
       
       // Extract ENUM values if present
       const columnType = attr.type || attr.DataType;
-      let enumValues: string[] | undefined = undefined;
+      let enumValues: string[] | undefined;
       if (columnType && columnType.constructor && columnType.constructor.name && columnType.constructor.name.includes('ENUM')) {
         enumValues = columnType.options?.values || columnType.values || undefined;
         if (enumValues && Array.isArray(enumValues)) {
@@ -217,14 +217,14 @@ export class MigrationGenerator {
       }
       
       columns.push({
-        name: columnName,
-        type: columnType,
-        enumValues: enumValues, // Store enum values separately
         allowNull: attr.allowNull !== false,
-        primaryKey: attr.primaryKey || false,
-        unique: attr.unique || false,
-        defaultValue: defaultValue,
         autoIncrement: attr.autoIncrement || false,
+        defaultValue,
+        enumValues, // Store enum values separately
+        name: columnName,
+        primaryKey: attr.primaryKey || false,
+        type: columnType,
+        unique: attr.unique || false,
       });
     }
 
@@ -236,12 +236,12 @@ export class MigrationGenerator {
    */
   private compareColumns(modelColumns: any[], dbColumns: any): {
     adds: any[];
+    changes: { newColumn: any; oldColumn: any; columnName: string }[];
     removes: string[];
-    changes: Array<{ columnName: string; oldColumn: any; newColumn: any }>;
   } {
     const adds: any[] = [];
     const removes: string[] = [];
-    const changes: Array<{ columnName: string; oldColumn: any; newColumn: any }> = [];
+    const changes: { newColumn: any; oldColumn: any; columnName: string }[] = [];
 
     // Find new columns
     for (const modelCol of modelColumns) {
@@ -253,8 +253,8 @@ export class MigrationGenerator {
         if (this.columnsDiffer(modelCol, dbCol)) {
           changes.push({
             columnName: modelCol.name,
-            oldColumn: this.dbColumnToModel(dbCol),
             newColumn: modelCol,
+            oldColumn: this.dbColumnToModel(dbCol),
           });
         }
       }
@@ -268,7 +268,7 @@ export class MigrationGenerator {
       }
     }
 
-    return { adds, removes, changes };
+    return { adds, changes, removes };
   }
 
   /**
@@ -292,7 +292,7 @@ export class MigrationGenerator {
    * Convert DataType to string representation with values for ENUM
    * Supports all SQL data types: STRING, UUID, DATE, INTEGER, DECIMAL, TEXT, JSON, etc.
    */
-  private getDataTypeString(dataType: any): { typeString: string; enumValues?: string[] } {
+  private getDataTypeString(dataType: any): { enumValues?: string[]; typeString: string } {
     if (!dataType) return { typeString: 'STRING' };
     
     // If it's already a string (from database type), use it
@@ -344,8 +344,8 @@ export class MigrationGenerator {
         // Extract ENUM values
         const values = dataType.options?.values || dataType.values || [];
         return { 
-          typeString: 'ENUM', 
-          enumValues: Array.isArray(values) ? values : Object.values(values)
+          enumValues: Array.isArray(values) ? values : Object.values(values),
+          typeString: 'ENUM',
         };
       }
       
@@ -419,9 +419,9 @@ export class MigrationGenerator {
     const sequelizeType = this.dbTypeToSequelizeType(dbCol.type);
     
     return {
+      allowNull: dbCol.allowNull !== false && dbCol.allowNull !== 'NO',
       name: dbCol.field || dbCol.Field,
       type: sequelizeType,
-      allowNull: dbCol.allowNull !== false && dbCol.allowNull !== 'NO',
       unique: dbCol.unique || false,
     };
   }
@@ -478,7 +478,7 @@ export class MigrationGenerator {
   /**
    * Generate defaultValue code and track needed imports
    */
-  private generateDefaultValue(defaultValue: any, dataType: any): { code: string; imports: string[] } {
+  private generateDefaultValue(defaultValue: any, _dataType: any): { code: string; imports: string[] } {
     const imports: string[] = [];
 
     // Handle UUIDV4
@@ -574,61 +574,44 @@ ${hasOperations ? downOps.join('\n') : '  // No rollback needed'}
    * Generate SQL to populate a new NOT NULL column from existing columns
    * Uses smart pattern detection and generic fallbacks for any column type
    */
-  private generatePopulateSQL(tableName: string, newColumnName: string, existingColumns: any, columnInfo?: any): string | null {
+  private generatePopulateSQL(tableName: string, newColumnName: string, existingColumns: any, _columnInfo?: any): string | null {
     const columnLower = newColumnName.toLowerCase();
     const sources: string[] = [];
     
     // Pattern-based detection for common column names
     const patterns = {
-      // User-related patterns
-      username: ['user_number', 'email', 'login', 'account'],
-      user_name: ['username', 'user_number', 'email'],
-      email: ['username', 'login'],
-      phone: ['mobile', 'telephone', 'contact'],
-      mobile: ['phone', 'telephone'],
-      
-      // Name patterns
-      first_name: ['name', 'full_name'],
-      last_name: ['surname', 'family_name'],
-      full_name: ['first_name', 'last_name'],
-      name: ['title', 'label'],
-      
-      // Address patterns
       address: ['street', 'location'],
-      street: ['address'],
-      city: ['location', 'address'],
-      country: ['location', 'region'],
-      postal_code: ['zip', 'zip_code'],
-      
-      // Description/Content patterns
-      description: ['content', 'text', 'body', 'note'],
-      content: ['description', 'text', 'body'],
-      title: ['name', 'label', 'heading'],
-      
-      // Numeric patterns
-      count: ['total', 'number'],
-      total: ['count', 'sum'],
-      price: ['cost', 'amount'],
       amount: ['price', 'total', 'value'],
-      
-      // Date patterns
-      date: ['created_at', 'timestamp'],
-      start_date: ['created_at', 'date'],
-      end_date: ['updated_at', 'date'],
-      
-      // Status patterns
-      status: ['state', 'active'],
-      state: ['status'],
-      
-      // Identifier patterns
+      city: ['location', 'address'],
       code: ['id', 'key', 'reference'],
+      content: ['description', 'text', 'body'],
+      count: ['total', 'number'],
+      country: ['location', 'region'],
+      date: ['created_at', 'timestamp'],
+      description: ['content', 'text', 'body', 'note'],
+      device_id: ['id', 'uuid'],
+      email: ['username', 'login'],
+      end_date: ['updated_at', 'date'],
+      first_name: ['name', 'full_name'],
+      full_name: ['first_name', 'last_name'],
+      ip_address: ['ip', 'address'],
+      last_name: ['surname', 'family_name'],
+      mobile: ['phone', 'telephone'],
+      name: ['title', 'label'],
+      phone: ['mobile', 'telephone', 'contact'],
+      postal_code: ['zip', 'zip_code'],
+      price: ['cost', 'amount'],
       reference: ['code', 'key'],
       slug: ['name', 'title'],
-      
-      // Device/System patterns
-      device_id: ['id', 'uuid'],
-      ip_address: ['ip', 'address'],
+      start_date: ['created_at', 'date'],
+      state: ['status'],
+      status: ['state', 'active'],
+      street: ['address'],
+      title: ['name', 'label', 'heading'],
+      total: ['count', 'sum'],
       user_agent: ['agent', 'browser'],
+      user_name: ['username', 'user_number', 'email'],
+      username: ['user_number', 'email', 'login', 'account'],
     };
     
     // Try to find related columns based on patterns
@@ -748,13 +731,13 @@ ${hasOperations ? downOps.join('\n') : '  // No rollback needed'}
    * Generate SQL to set default values for all column types
    * Handles UUID, DATE, BOOLEAN, ENUM, INTEGER, DECIMAL, TEXT, JSON, etc.
    */
-  private generateDefaultValueSQL(tableName: string, columnName: string, columnInfo: any): string | null {
-    const typeInfo = this.getDataTypeString(columnInfo.type);
+  private generateDefaultValueSQL(tableName: string, columnName: string, _columnInfo: any): string | null {
+    const typeInfo = this.getDataTypeString(_columnInfo.type);
     const columnLower = columnName.toLowerCase();
     
     // UUID columns with UUIDV4 default - don't populate, the default will handle it
     if (typeInfo.typeString === 'UUID') {
-      if (columnInfo.defaultValue === DataTypes.UUIDV4 || columnInfo.defaultValue === UUIDV4) {
+      if (_columnInfo.defaultValue === DataTypes.UUIDV4 || _columnInfo.defaultValue === UUIDV4) {
         // UUIDV4 default will generate values automatically, no need to populate
         return null;
       }
@@ -769,14 +752,14 @@ ${hasOperations ? downOps.join('\n') : '  // No rollback needed'}
     
     // BOOLEAN columns - use false by default unless specified
     if (typeInfo.typeString === 'BOOLEAN') {
-      const defaultValue = columnInfo.defaultValue !== undefined ? columnInfo.defaultValue : false;
+      const defaultValue = _columnInfo.defaultValue !== undefined ? _columnInfo.defaultValue : false;
       return `UPDATE ${tableName} SET ${columnName} = ${defaultValue} WHERE ${columnName} IS NULL;`;
     }
     
     // ENUM columns - use first enum value
     if (typeInfo.typeString === 'ENUM') {
-      if (columnInfo.enumValues && columnInfo.enumValues.length > 0) {
-        const firstValue = columnInfo.enumValues[0];
+      if (_columnInfo.enumValues && _columnInfo.enumValues.length > 0) {
+        const firstValue = _columnInfo.enumValues[0];
         return `UPDATE ${tableName} SET ${columnName} = '${firstValue}' WHERE ${columnName} IS NULL;`;
       } else if (typeInfo.enumValues && typeInfo.enumValues.length > 0) {
         const firstValue = typeInfo.enumValues[0];

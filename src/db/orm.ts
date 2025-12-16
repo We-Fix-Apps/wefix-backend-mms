@@ -5,8 +5,9 @@ import { Sequelize } from 'sequelize-typescript';
 import { QueryInterface } from 'sequelize/types';
 import { SequelizeStorage, Umzug } from 'umzug';
 
-import { ormConfig } from '../settings';
 import { MODELS, setupAssociations } from './models';
+
+import { ormConfig } from '../settings';
 
 export class ORM {
   queryInterface: QueryInterface;
@@ -33,20 +34,24 @@ export class ORM {
     this.sequelize = new Sequelize(this.config.database, this.config.username, this.config.password, {
       dialect: 'postgres',
       host: this.config.host,
-      pool: {
-        max: 10, 
-        min: 0,
-        acquire: 30000,
-        idle: 10000
-      },
       modelMatch: (filename, member) => {
         return filename.substring(0, filename.indexOf('.model')) === member.toLowerCase();
       },
       models: MODELS,
+      pool: {
+        acquire: 60000,
+        idle: 10000,
+        max: 10,
+        min: 2,
+        evict: 1000,
+      },
+      dialectOptions: {
+        connectTimeout: 60000,
+      },
       port: Number(process.env.DB_PORT),
     });
 
-    // setupAssociations();
+    setupAssociations();
 
     this.queryInterface = this.sequelize.getQueryInterface();
 
@@ -65,9 +70,6 @@ export class ORM {
   private initUmzug() {
     this.umzug = new Umzug({
       context: { queryInterface: this.queryInterface, sequelize: this.sequelize },
-      storage: new SequelizeStorage({
-        sequelize: this.sequelize,
-      }),
       create: {
         folder: path.join(path.resolve(), 'src/db/migrations'),
         template: (filepath: string) => {
@@ -81,29 +83,30 @@ export class ORM {
       logger: console,
       migrations: {
         glob: ['dist/db/migrations/*.js', { cwd: path.resolve() }],
-        resolve: ({ name, path: migrationPath, context }) => {
-          // Import the migration module
+        resolve: ({ context, name, path: migrationPath }) => {
+          // Use require for CommonJS modules (compiled JS files)
           const migration = require(migrationPath);
           
           return {
-            name,
-            up: async () => {
-              if (typeof migration.up === 'function') {
-                // Pass queryInterface to the migration function
-                return migration.up(context.queryInterface);
-              }
-              throw new Error(`Migration ${name} does not export an 'up' function`);
-            },
-            down: async () => {
+            down: () => {
               if (typeof migration.down === 'function') {
-                // Pass queryInterface to the migration function
                 return migration.down(context.queryInterface);
               }
               throw new Error(`Migration ${name} does not export a 'down' function`);
             },
+            name,
+            up: () => {
+              if (typeof migration.up === 'function') {
+                return migration.up(context.queryInterface);
+              }
+              throw new Error(`Migration ${name} does not export an 'up' function`);
+            },
           };
         },
       },
+      storage: new SequelizeStorage({
+        sequelize: this.sequelize,
+      }),
     });
   }
 

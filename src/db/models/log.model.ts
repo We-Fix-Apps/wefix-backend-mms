@@ -1,10 +1,10 @@
-import { DataTypes, UUIDV4 } from 'sequelize'
+import { DataTypes } from 'sequelize'
 import { BelongsTo, Column, CreatedAt, ForeignKey, Model, Table, UpdatedAt } from 'sequelize-typescript'
 
 
 import { User } from './user.model'
 
-import { Actions } from '../../RESTful/types/log.types'
+import { Actions } from '../../graphql/service/Log/typedefs/logEnums'
 import { getDate, getIsoTimestamp, setDate } from '../../lib'
 
 @Table({
@@ -14,11 +14,11 @@ import { getDate, getIsoTimestamp, setDate } from '../../lib'
 export class Log extends Model {
   @Column({
     allowNull: false,
-    defaultValue: UUIDV4,
+    autoIncrement: true,
     primaryKey: true,
-    type: DataTypes.UUID,
+    type: DataTypes.INTEGER,
   })
-  public id: string
+  public id: number
 
   @Column({
     allowNull: false,
@@ -43,8 +43,8 @@ export class Log extends Model {
   public description: string
 
   @ForeignKey(() => User)
-  @Column({ type: DataTypes.STRING })
-  public user_id: string
+  @Column({ type: DataTypes.INTEGER })
+  public user_id: number
 
   @BelongsTo(() => User)
   public user: User
@@ -77,4 +77,62 @@ export class Log extends Model {
     type: DataTypes.BOOLEAN,
   })
   public is_archived: boolean
+
+  @ForeignKey(() => User)
+  @Column({
+    allowNull: true,
+    comment: 'User who created this record',
+    type: DataTypes.INTEGER,
+  })
+  public created_by: number | null
+
+  @BelongsTo(() => User, { foreignKey: 'created_by', as: 'creator' })
+  public creator?: User | null
+
+  @ForeignKey(() => User)
+  @Column({
+    allowNull: true,
+    comment: 'User who last updated this record',
+    type: DataTypes.INTEGER,
+  })
+  public updated_by: number | null
+
+  @BelongsTo(() => User, { foreignKey: 'updated_by', as: 'updater' })
+  public updater?: User | null
+
+  @Column({
+    allowNull: true,
+    comment: 'DateTime when record was deleted',
+    get: getDate('deleted_at'),
+    set: setDate('deleted_at'),
+    type: DataTypes.DATE,
+  })
+  public deleted_at: Date | null
+
+  @ForeignKey(() => User)
+  @Column({
+    allowNull: true,
+    comment: 'User who deleted this record',
+    type: DataTypes.INTEGER,
+  })
+  public deleted_by: number | null
+
+  @BelongsTo(() => User, { foreignKey: 'deleted_by', as: 'deleter' })
+  public deleter?: User | null
+
+  @Column({
+    allowNull: false,
+    comment: 'Whether the record is active',
+    defaultValue: true,
+    type: DataTypes.BOOLEAN,
+  })
+  public is_active: boolean
+
+  @Column({
+    allowNull: false,
+    comment: 'Whether the record is deleted (soft delete)',
+    defaultValue: false,
+    type: DataTypes.BOOLEAN,
+  })
+  public is_deleted: boolean
 }
