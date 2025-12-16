@@ -131,9 +131,6 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
     },
   });
 
-  // Log all ticket types found for debugging
-  console.log(`All ticket types found:`, ticketTypes.map(t => ({ id: t.id, name: t.name, code: t.code })));
-
   // Find ticket types by name (case-insensitive) - try multiple approaches
   const correctiveType = ticketTypes.find(t => {
     const name = t.name.toLowerCase().trim();
@@ -146,12 +143,6 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const emergencyType = ticketTypes.find(t => {
     const name = t.name.toLowerCase().trim();
     return name === 'emergency' || name === 'emergency maintenance' || t.code === 'EMRG';
-  });
-
-  console.log(`Ticket types found:`, {
-    corrective: correctiveType ? { id: correctiveType.id, name: correctiveType.name, code: correctiveType.code } : null,
-    preventive: preventiveType ? { id: preventiveType.id, name: preventiveType.name, code: preventiveType.code } : null,
-    emergency: emergencyType ? { id: emergencyType.id, name: emergencyType.name, code: emergencyType.code } : null,
   });
 
   // Count tickets by type
@@ -193,19 +184,10 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
     },
   });
 
-  console.log(`Ticket counts for company ${companyId}:`, {
-    corrective: correctiveCount,
-    preventive: preventiveCount,
-    emergency: emergencyCount,
-    total: totalCount,
-  });
-
   // Find "Completed" status
   const completedStatus = ticketStatuses.find(t => 
     t.name.toLowerCase().trim() === 'completed'
   );
-
-  console.log(`Completed status found:`, completedStatus ? { id: completedStatus.id, name: completedStatus.name } : null);
 
   // Count completed tickets by type
   const correctiveCompleted = correctiveType && completedStatus
@@ -240,12 +222,6 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
         },
       })
     : 0;
-
-  console.log(`Completed ticket counts by type:`, {
-    corrective: correctiveCompleted,
-    preventive: preventiveCompleted,
-    emergency: emergencyCompleted,
-  });
 
   // Count by status
   const statusCounts: Record<string, number> = {};
