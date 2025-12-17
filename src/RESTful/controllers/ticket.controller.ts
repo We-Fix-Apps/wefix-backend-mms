@@ -37,7 +37,20 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
   const preventiveType = ticketTypes.find(t => t.name.toLowerCase() === 'preventive');
   const emergencyType = ticketTypes.find(t => t.name.toLowerCase() === 'emergency');
 
-  // Fetch all tickets for the company
+  // Get pagination parameters
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const offset = (page - 1) * limit;
+
+  // Get total count for pagination
+  const totalCount = await Ticket.count({
+    where: {
+      companyId: companyId,
+      isDeleted: false,
+    },
+  });
+
+  // Fetch tickets for the company with pagination
   const tickets = await Ticket.findAll({
     where: {
       companyId: companyId,
@@ -67,6 +80,8 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
       },
     ],
     order: [['createdAt', 'DESC']],
+    limit: limit,
+    offset: offset,
   });
 
   // Group tickets by type
@@ -98,9 +113,16 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
         tickets: emergencyTickets.map(formatTicket),
       },
       all: {
-        total: tickets.length,
+        total: totalCount,
         tickets: tickets.map(formatTicket),
       },
+    },
+    pagination: {
+      page: page,
+      limit: limit,
+      total: totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      hasMore: offset + tickets.length < totalCount,
     },
   };
 
