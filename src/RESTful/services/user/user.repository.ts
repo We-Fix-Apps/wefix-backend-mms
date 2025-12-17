@@ -14,6 +14,8 @@ class UserRepository {
   public getStudents: (where: FindOptions) => Promise<UserOrm[]>;
   public updateUserById: (id: string, updateData: UpdateUserInput) => Promise<UserOrm | null>;
   public validateRefreshToken: (email: string) => Promise<UserOrm | null>;
+  public updateUserToken: (id: string, token: string, tokenExpiresAt: Date) => Promise<void>;
+  public clearUserToken: (id: string) => Promise<void>;
   public getStudentsInCourseActivity: (courseId: string, activityId: string) => Promise<UserOrm[]>;
   public getStudentInCourseActivity: (activityId: string, studentId: string) => Promise<UserOrm>;
   public getStudentsDeviceTokensForCourse: (courseId: string) => Promise<UserOrm[]>;
@@ -28,6 +30,8 @@ class UserRepository {
     this.getStudents = this._getStudents.bind(this);
     this.updateUserById = this._updateUserById.bind(this);
     this.validateRefreshToken = this._validateRefreshToken.bind(this);
+    this.updateUserToken = this._updateUserToken.bind(this);
+    this.clearUserToken = this._clearUserToken.bind(this);
   }
 
   private async _authenticateUser(
@@ -193,6 +197,28 @@ class UserRepository {
       return deleted > 0;
     } catch (error) {
       throw new Error(`Failed to delete user with ID ${id}: ${error.message}`);
+    }
+  }
+
+  private async _updateUserToken(id: string, token: string, tokenExpiresAt: Date): Promise<void> {
+    try {
+      const user = await User.findOne({ where: { id: parseInt(id) } });
+      if (user) {
+        await user.update({ token, tokenExpiresAt });
+      }
+    } catch (error) {
+      throw new Error(`Failed to update user token with ID ${id}: ${error.message}`);
+    }
+  }
+
+  private async _clearUserToken(id: string): Promise<void> {
+    try {
+      const user = await User.findOne({ where: { id: parseInt(id) } });
+      if (user) {
+        await user.update({ token: null, tokenExpiresAt: null });
+      }
+    } catch (error) {
+      throw new Error(`Failed to clear user token with ID ${id}: ${error.message}`);
     }
   }
 }

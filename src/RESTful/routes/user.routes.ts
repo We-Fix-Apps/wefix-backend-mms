@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Public routes
 router.post('/login', userController.login);
+router.post('/logout', authenticateToken, userController.logout);
 router.post('/register', userController.createUser);
 router.post('/refresh-token', userController.refreshAccessToken);
 router.get('/token/:token', userController.getUserByToken);

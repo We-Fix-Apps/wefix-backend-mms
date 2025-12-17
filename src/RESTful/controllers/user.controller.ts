@@ -46,6 +46,15 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   const accessToken = generateToken(user);
   const refreshToken = generateRefreshToken(user);
 
+  // Calculate token expiration time from JWT
+  const decodedToken = jwt.decode(accessToken) as { exp?: number } | null;
+  const tokenExpiresAt = decodedToken?.exp 
+    ? new Date(decodedToken.exp * 1000) 
+    : new Date(Date.now() + 3600 * 1000); // Default to 1 hour if can't decode
+
+  // Save accessToken to database with prefix "mobile-access-token:"
+  await userRepository.updateUserToken(user.id.toString(), `mobile-access-token:${accessToken}`, tokenExpiresAt);
+
   res.status(200).json({
     success: true,
     message: 'Login successful',
@@ -286,6 +295,20 @@ export const getCurrentUser = asyncHandler(async (req: AuthRequest, res: Respons
     success: true,
     message: 'Current user fetched successfully',
     user: req.user,
+  });
+});
+
+export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
+  }
+
+  // Clear token and tokenExpiresAt from database
+  await userRepository.clearUserToken(req.user.id.toString());
+
+  res.status(200).json({
+    success: true,
+    message: 'Logout successful',
   });
 });
 
