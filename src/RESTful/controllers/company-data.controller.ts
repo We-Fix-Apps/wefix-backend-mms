@@ -311,7 +311,7 @@ export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: 
 export const getTicketTypes = asyncHandler(async (req: AuthRequest, res: Response) => {
   const ticketTypes = await Lookup.findAll({
     where: { category: LookupCategory.TICKET_TYPE, isActive: true },
-    attributes: ['id', 'name', 'nameArabic', 'category', 'value'],
+    attributes: ['id', 'name', 'nameArabic', 'category'],
     order: [['orderId', 'ASC']],
   });
 
