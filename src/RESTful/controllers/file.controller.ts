@@ -91,14 +91,9 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
   const fileType = getFileTypeFromExtension(fileExtension);
   const fileSizeMB = parseFloat((file.size / (1024 * 1024)).toFixed(2));
 
-  // Get referenceId and referenceType from request body
+  // Get referenceId and referenceType from request body (optional - will be linked later)
   const referenceId = req.body.referenceId ? parseInt(req.body.referenceId) : null;
   const referenceType = req.body.referenceType || FileReferenceType.TICKET_ATTACHMENT;
-
-  // Validate that referenceId is provided (required in database)
-  if (!referenceId) {
-    throw new AppError('referenceId is required for file upload', 400, 'VALIDATION_ERROR');
-  }
 
   // Create file record in database using only legacy columns
   const fileRecord = await File.create({
@@ -110,7 +105,7 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
     category: fileType === FileType.IMAGE ? 'image' : 'contract', // Legacy enum
     entityType: referenceType === FileReferenceType.COMPANY ? 'company' : 
                 referenceType === FileReferenceType.CONTRACT ? 'contract' : 'user', // Legacy enum
-    entityId: referenceId, // Entity ID (ticket ID, company ID, etc.) - required
+    entityId: referenceId || null, // Entity ID (ticket ID, company ID, etc.) - nullable until linked
     createdBy: user.id, // User who uploaded
   } as any) as any;
 
@@ -179,7 +174,7 @@ export const uploadMultipleFiles = asyncHandler(async (req: AuthRequest, res: Re
       entityType: referenceType === FileReferenceType.COMPANY ? 'company' : 
                   referenceType === FileReferenceType.CONTRACT ? 'contract' : 
                   referenceType === FileReferenceType.USER ? 'user' : 'user', // Legacy enum - using 'user' as fallback for TICKET_ATTACHMENT and others
-      entityId: referenceId, // Entity ID (ticket ID, company ID, etc.) - required
+      entityId: referenceId || null, // Entity ID (ticket ID, company ID, etc.) - nullable until linked
       createdBy: user.id, // User who uploaded
     } as any) as any;
 

@@ -540,8 +540,20 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     createdBy: user.id,
   });
 
-  // Note: Files are uploaded separately with referenceId already set
-  // No need to link files here since they're linked during upload
+  // Link files to ticket if fileIds are provided
+  if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
+    // Update files to link them to this ticket
+    await File.update(
+      {
+        entityId: ticket.id, // Link to ticket using legacy column
+      },
+      {
+        where: {
+          id: { [Op.in]: fileIds },
+        },
+      }
+    );
+  }
 
   // Fetch created ticket with relations
   const createdTicket = await Ticket.findByPk(ticket.id, {
@@ -677,8 +689,20 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   await ticket.save();
 
-  // Note: Files are uploaded separately with referenceId already set
-  // No need to link files here since they're linked during upload
+  // Link files to ticket if fileIds are provided
+  if (fileIds !== undefined && Array.isArray(fileIds) && fileIds.length > 0) {
+    // Update files to link them to this ticket
+    await File.update(
+      {
+        entityId: ticket.id, // Link to ticket using legacy column
+      },
+      {
+        where: {
+          id: { [Op.in]: fileIds },
+        },
+      }
+    );
+  }
 
   // Fetch updated ticket with relations
   const updatedTicket = await Ticket.findByPk(ticket.id, {
