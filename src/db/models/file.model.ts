@@ -107,6 +107,7 @@ export class File extends Model {
     allowNull: true, // Temporarily optional until migration is run
     comment: 'Stored filename on disk',
     type: DataTypes.STRING(255),
+    // Don't specify field - let Sequelize use underscored conversion, but we'll use legacy 'filename' field instead
   })
   public fileName?: string | null;
 
@@ -114,6 +115,7 @@ export class File extends Model {
     allowNull: true, // Temporarily optional until migration is run
     comment: 'File extension (jpg, png, pdf, docx, etc.)',
     type: DataTypes.STRING(20),
+    field: 'file_extension', // Explicitly map to file_extension column
   })
   public fileExtension?: string | null;
 
@@ -121,6 +123,7 @@ export class File extends Model {
     allowNull: true, // Temporarily optional until migration is run
     comment: 'File size in megabytes',
     type: DataTypes.DECIMAL(10, 2),
+    field: 'file_size_mb', // Explicitly map to file_size_mb column
   })
   public fileSizeMB?: number | null;
 
@@ -128,6 +131,7 @@ export class File extends Model {
     allowNull: true, // Temporarily optional until migration is run
     comment: 'File type category (image, pdf, doc, excel, video, etc.)',
     type: DataTypes.STRING(50),
+    field: 'file_type', // Explicitly map to file_type column
   })
   public fileType?: string | null;
 
@@ -135,6 +139,7 @@ export class File extends Model {
     allowNull: true, // Temporarily optional until migration is run
     comment: 'Actual path OR URL in S3/Blob storage',
     type: DataTypes.STRING(500),
+    field: 'file_path', // Explicitly map to file_path column
   })
   public filePath?: string | null;
 

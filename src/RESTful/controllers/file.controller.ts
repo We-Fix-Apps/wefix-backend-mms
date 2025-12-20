@@ -96,7 +96,7 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
   const referenceType = req.body.referenceType || FileReferenceType.TICKET_ATTACHMENT;
 
   // Create file record in database
-  // Using legacy columns for now until migration adds new columns
+  // Using legacy columns only - explicitly specify fields to avoid Sequelize trying to use new columns
   const fileRecord = await File.create({
     filename: file.filename, // Legacy column
     originalFilename: file.originalname, // Legacy column
@@ -108,7 +108,9 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
                 referenceType === FileReferenceType.CONTRACT ? 'contract' : 'user', // Legacy enum
     entityId: referenceId || 0, // Legacy column
     createdBy: user.id, // Legacy column
-  } as any); // Using 'as any' to bypass TypeScript strict checking for legacy fields
+  } as any, {
+    fields: ['filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'], // Explicitly specify which fields to use
+  });
 
   res.status(201).json({
     success: true,
@@ -164,7 +166,7 @@ export const uploadMultipleFiles = asyncHandler(async (req: AuthRequest, res: Re
     const fileType = getFileTypeFromExtension(fileExtension);
     const fileSizeMB = parseFloat(((file.size || 0) / (1024 * 1024)).toFixed(2));
 
-    // Using legacy columns for now until migration adds new columns
+    // Using legacy columns only - explicitly specify fields to avoid Sequelize trying to use new columns
     const fileRecord = await File.create({
       filename: file.filename, // Legacy column
       originalFilename: file.originalname, // Legacy column
@@ -177,7 +179,9 @@ export const uploadMultipleFiles = asyncHandler(async (req: AuthRequest, res: Re
                   referenceType === FileReferenceType.USER ? 'user' : 'user', // Legacy enum - using 'user' as fallback for TICKET_ATTACHMENT and others
       entityId: referenceId || 0, // Legacy column
       createdBy: user.id, // Legacy column
-    } as any); // Using 'as any' to bypass TypeScript strict checking for legacy fields
+    } as any, {
+      fields: ['filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'], // Explicitly specify which fields to use
+    });
 
     uploadedFiles.push({
       id: fileRecord.id,

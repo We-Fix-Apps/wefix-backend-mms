@@ -12,3 +12,4 @@ router.post('/', authenticateToken, ticketController.createTicket);
 router.put('/:id', authenticateToken, ticketController.updateTicket);
 
 export default router;
+
