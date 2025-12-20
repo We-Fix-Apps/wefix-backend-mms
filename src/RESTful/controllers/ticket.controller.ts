@@ -478,7 +478,6 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     mainServiceId,
     serviceDescription,
     tools,
-    fileIds, // Array of file IDs to link to this ticket
   } = req.body;
 
   // Validation
@@ -541,34 +540,8 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     createdBy: user.id,
   });
 
-  // Link files to ticket if fileIds are provided
-  if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
-    // Validate that all file IDs exist and are not already linked
-    const files = await File.findAll({
-      where: {
-        id: { [Op.in]: fileIds },
-        isDeleted: false,
-      },
-    });
-
-    if (files.length !== fileIds.length) {
-      throw new AppError('One or more file IDs are invalid', 400, 'VALIDATION_ERROR');
-    }
-
-    // Update files to link them to this ticket
-    // Using legacy columns for now until migration adds new columns
-    await File.update(
-      {
-        entityId: ticket.id, // Legacy column
-        // entityType left as is since old enum doesn't support ticket attachments
-      },
-      {
-        where: {
-          id: { [Op.in]: fileIds },
-        },
-      }
-    );
-  }
+  // Note: Files are uploaded separately with referenceId already set
+  // No need to link files here since they're linked during upload
 
   // Fetch created ticket with relations
   const createdTicket = await Ticket.findByPk(ticket.id, {
@@ -637,7 +610,6 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   // Update fields
   const {
-    fileIds, // Array of file IDs to link to this ticket
     contractId,
     branchId,
     zoneId,
@@ -705,34 +677,8 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   await ticket.save();
 
-  // Link files to ticket if fileIds are provided
-  if (fileIds !== undefined && Array.isArray(fileIds) && fileIds.length > 0) {
-    // Validate that all file IDs exist
-    const files = await File.findAll({
-      where: {
-        id: { [Op.in]: fileIds },
-        isDeleted: false,
-      },
-    });
-
-    if (files.length !== fileIds.length) {
-      throw new AppError('One or more file IDs are invalid', 400, 'VALIDATION_ERROR');
-    }
-
-    // Update files to link them to this ticket
-    // Using legacy columns for now until migration adds new columns
-    await File.update(
-      {
-        entityId: ticket.id, // Legacy column
-        // entityType left as is since old enum doesn't support ticket attachments
-      },
-      {
-        where: {
-          id: { [Op.in]: fileIds },
-        },
-      }
-    );
-  }
+  // Note: Files are uploaded separately with referenceId already set
+  // No need to link files here since they're linked during upload
 
   // Fetch updated ticket with relations
   const updatedTicket = await Ticket.findByPk(ticket.id, {
