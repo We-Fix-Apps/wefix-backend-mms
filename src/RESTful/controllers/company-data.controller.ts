@@ -305,3 +305,28 @@ export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: 
   });
 });
 
+/**
+ * Get ticket types (lookups with category TICKET_TYPE)
+ */
+export const getTicketTypes = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const ticketTypes = await Lookup.findAll({
+    where: { category: LookupCategory.TICKET_TYPE, isActive: true },
+    attributes: ['id', 'name', 'nameArabic', 'nameEnglish', 'category', 'value'],
+    order: [['orderId', 'ASC']],
+  });
+
+  const formattedTypes = ticketTypes.map((type) => ({
+    id: type.id,
+    title: type.name,
+    subtitle: type.nameArabic || '',
+    name: type.name,
+    nameArabic: type.nameArabic,
+  }));
+
+  res.status(200).json({
+    success: true,
+    message: 'Ticket types retrieved successfully',
+    data: formattedTypes,
+  });
+});
+

@@ -359,4 +359,3 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
     message: 'Logout successful',
   });
 });
-

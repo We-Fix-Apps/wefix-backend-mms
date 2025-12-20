@@ -12,6 +12,7 @@ router.get('/main-services', authenticateToken, companyDataController.getMainSer
 router.get('/sub-services', authenticateToken, companyDataController.getSubServices);
 router.get('/team-leaders', authenticateToken, companyDataController.getCompanyTeamLeaders);
 router.get('/technicians', authenticateToken, companyDataController.getCompanyTechnicians);
+router.get('/ticket-types', authenticateToken, companyDataController.getTicketTypes);
 
 export default router;
 
