@@ -83,36 +83,33 @@ export const convertFileEntityTypeToReferenceType = (entityType: FileEntityType)
 export class File extends Model {
   @Column({
     allowNull: false,
-    autoIncrement: true, // Keep as INTEGER until migration is run
     primaryKey: true,
-    type: DataTypes.INTEGER, // Temporarily INTEGER until migration is run
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
   })
-  public id: number; // Temporarily number until migration is run
+  public id: string;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'ID of the entity this file belongs to (TicketId, CompanyId, UserId, etc.)',
-    type: DataTypes.INTEGER, // Using INTEGER to match existing entity IDs
+    type: DataTypes.INTEGER,
+    field: 'reference_id', // Explicitly map to reference_id column
   })
   public referenceId?: number | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'Type of entity this file belongs to (TICKET_ATTACHMENT, COMPANY, USER, LOGO, CONTRACT, etc.)',
     type: DataTypes.STRING(100),
+    field: 'reference_type', // Explicitly map to reference_type column
   })
   public referenceType?: string | null;
 
-  @Column({
-    allowNull: true, // Temporarily optional until migration is run
-    comment: 'Stored filename on disk',
-    type: DataTypes.STRING(255),
-    // Don't specify field - let Sequelize use underscored conversion, but we'll use legacy 'filename' field instead
-  })
-  public fileName?: string | null;
+  // Note: There is NO 'file_name' column in the database, only 'filename' (legacy)
+  // Use 'filename' property for the legacy column instead
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'File extension (jpg, png, pdf, docx, etc.)',
     type: DataTypes.STRING(20),
     field: 'file_extension', // Explicitly map to file_extension column
@@ -120,7 +117,7 @@ export class File extends Model {
   public fileExtension?: string | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'File size in megabytes',
     type: DataTypes.DECIMAL(10, 2),
     field: 'file_size_mb', // Explicitly map to file_size_mb column
@@ -128,7 +125,7 @@ export class File extends Model {
   public fileSizeMB?: number | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'File type category (image, pdf, doc, excel, video, etc.)',
     type: DataTypes.STRING(50),
     field: 'file_type', // Explicitly map to file_type column
@@ -136,7 +133,7 @@ export class File extends Model {
   public fileType?: string | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'Actual path OR URL in S3/Blob storage',
     type: DataTypes.STRING(500),
     field: 'file_path', // Explicitly map to file_path column
@@ -144,10 +141,11 @@ export class File extends Model {
   public filePath?: string | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     defaultValue: StorageProvider.LOCAL,
     comment: 'Storage provider (LOCAL, AWS_S3, AZURE_BLOB, GOOGLE_CLOUD)',
     type: DataTypes.STRING(100),
+    field: 'storage_provider', // Explicitly map to storage_provider column
   })
   public storageProvider?: string | null;
 
@@ -155,14 +153,16 @@ export class File extends Model {
     allowNull: true,
     comment: 'Optional file description',
     type: DataTypes.STRING(2000),
+    field: 'description', // Explicitly map to description column
   })
   public description: string | null;
 
   @ForeignKey(() => User)
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     comment: 'User who uploaded this file',
     type: DataTypes.INTEGER,
+    field: 'uploaded_by', // Explicitly map to uploaded_by column
   })
   public uploadedBy?: number | null;
 
@@ -170,20 +170,22 @@ export class File extends Model {
   public uploader?: User | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     defaultValue: getIsoTimestamp,
     comment: 'File upload timestamp',
     get: getDate('uploadedAt'),
     set: setDate('uploadedAt'),
     type: DataTypes.DATE,
+    field: 'uploaded_at', // Explicitly map to uploaded_at column
   })
   public uploadedAt?: Date | null;
 
   @Column({
-    allowNull: true, // Temporarily optional until migration is run
+    allowNull: true,
     defaultValue: false,
     comment: 'Soft delete flag',
     type: DataTypes.BOOLEAN,
+    field: 'is_deleted', // Explicitly map to is_deleted column
   })
   public isDeleted?: boolean | null;
 
@@ -193,6 +195,7 @@ export class File extends Model {
     get: getDate('deletedAt'),
     set: setDate('deletedAt'),
     type: DataTypes.DATE,
+    field: 'deleted_at', // Explicitly map to deleted_at column
   })
   public deletedAt: Date | null;
 
@@ -201,6 +204,7 @@ export class File extends Model {
     allowNull: true,
     comment: 'User who deleted this file',
     type: DataTypes.INTEGER,
+    field: 'deleted_by', // Explicitly map to deleted_by column
   })
   public deletedBy: number | null;
 

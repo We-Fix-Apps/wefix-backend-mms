@@ -96,7 +96,7 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
   const referenceType = req.body.referenceType || FileReferenceType.TICKET_ATTACHMENT;
 
   // Create file record in database
-  // Using legacy columns only - explicitly specify fields to avoid Sequelize trying to use new columns
+  // Using legacy columns only - explicitly specify fields and attributes to avoid Sequelize trying to use new columns
   const fileRecord = await File.create({
     filename: file.filename, // Legacy column
     originalFilename: file.originalname, // Legacy column
@@ -109,22 +109,27 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
     entityId: referenceId || 0, // Legacy column
     createdBy: user.id, // Legacy column
   } as any, {
-    fields: ['filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'], // Explicitly specify which fields to use
+    fields: ['filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'], // Explicitly specify which fields to insert
+  }) as any;
+  
+  // Fetch the created record separately with only legacy fields to avoid RETURNING clause errors
+  const createdFile = await File.findByPk((fileRecord as any).id, {
+    attributes: ['id', 'filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'],
   });
 
   res.status(201).json({
     success: true,
     message: 'File uploaded successfully',
     data: {
-      id: fileRecord.id,
-      fileName: (fileRecord as any).filename || fileRecord.fileName,
+      id: createdFile!.id,
+      fileName: (createdFile as any).filename,
       fileExtension: fileExtension.replace('.', ''),
       fileType: fileType,
       fileSizeMB: fileSizeMB,
-      filePath: (fileRecord as any).path || fileRecord.filePath,
-      referenceId: (fileRecord as any).entityId || fileRecord.referenceId,
+      filePath: (createdFile as any).path,
+      referenceId: (createdFile as any).entityId,
       referenceType: referenceType,
-      uploadedAt: (fileRecord as any).createdAt || fileRecord.uploadedAt,
+      uploadedAt: (createdFile as any).createdAt,
     },
   });
 });
@@ -180,19 +185,24 @@ export const uploadMultipleFiles = asyncHandler(async (req: AuthRequest, res: Re
       entityId: referenceId || 0, // Legacy column
       createdBy: user.id, // Legacy column
     } as any, {
-      fields: ['filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'], // Explicitly specify which fields to use
+      fields: ['filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'], // Explicitly specify which fields to insert
+    }) as any;
+    
+    // Fetch the created record separately with only legacy fields
+    const createdFile = await File.findByPk(fileRecord.id, {
+      attributes: ['id', 'filename', 'original_filename', 'path', 'mime_type', 'size', 'category', 'entity_type', 'entity_id', 'created_by', 'created_at', 'updated_at'],
     });
 
     uploadedFiles.push({
-      id: fileRecord.id,
-      fileName: (fileRecord as any).filename || fileRecord.fileName,
+      id: createdFile!.id,
+      fileName: (createdFile as any).filename,
       fileExtension: fileExtension.replace('.', ''),
       fileType: fileType,
       fileSizeMB: fileSizeMB,
-      filePath: (fileRecord as any).path || fileRecord.filePath,
-      referenceId: (fileRecord as any).entityId || fileRecord.referenceId,
+      filePath: (createdFile as any).path,
+      referenceId: (createdFile as any).entityId,
       referenceType: referenceType,
-      uploadedAt: (fileRecord as any).createdAt || fileRecord.uploadedAt,
+      uploadedAt: (createdFile as any).createdAt,
     });
   }
 
@@ -232,16 +242,16 @@ export const getFilesByReference = asyncHandler(async (req: AuthRequest, res: Re
   res.status(200).json({
     success: true,
     message: 'Files retrieved successfully',
-    data: files.map((file) => ({
+    data: files.map((file: any) => ({
       id: file.id,
-      fileName: file.fileName,
+      fileName: file.filename || file.fileName, // Use legacy filename field
       fileExtension: file.fileExtension,
       fileType: file.fileType,
       fileSizeMB: file.fileSizeMB,
-      filePath: file.filePath,
-      referenceId: file.referenceId,
+      filePath: file.path || file.filePath, // Use legacy path field
+      referenceId: file.entityId || file.referenceId, // Use legacy entityId field
       referenceType: file.referenceType,
-      uploadedAt: file.uploadedAt,
+      uploadedAt: file.createdAt || file.uploadedAt, // Use legacy createdAt field
     })),
   });
 });
