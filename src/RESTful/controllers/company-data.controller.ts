@@ -185,9 +185,9 @@ export const getSubServices = asyncHandler(async (req: AuthRequest, res: Respons
     isActive: true,
   };
 
-  // If parentServiceId is provided, filter by parentId
+  // If parentServiceId is provided, filter by parentLookupId
   if (parentServiceId) {
-    whereClause.parentId = parseInt(parentServiceId);
+    whereClause.parentLookupId = parseInt(parentServiceId);
   }
 
   const services = await Lookup.findAll({
@@ -311,7 +311,7 @@ export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: 
 export const getTicketTypes = asyncHandler(async (req: AuthRequest, res: Response) => {
   const ticketTypes = await Lookup.findAll({
     where: { category: LookupCategory.TICKET_TYPE, isActive: true },
-    attributes: ['id', 'name', 'nameArabic', 'nameEnglish', 'category', 'value'],
+    attributes: ['id', 'name', 'nameArabic', 'category', 'value'],
     order: [['orderId', 'ASC']],
   });
 
