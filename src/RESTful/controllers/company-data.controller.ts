@@ -201,7 +201,7 @@ export const getSubServices = asyncHandler(async (req: AuthRequest, res: Respons
     subtitle: service.nameArabic || '',
     name: service.name,
     nameArabic: service.nameArabic,
-    parentId: service.parentId,
+    parentId: service.parentLookupId,
   }));
 
   res.status(200).json({

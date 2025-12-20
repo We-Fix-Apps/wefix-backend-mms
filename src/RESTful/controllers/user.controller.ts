@@ -360,18 +360,3 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   });
 });
 
-
-    }
-    
-    if (shouldClear) {
-      // Clear token and tokenExpiresAt from database
-      await userRepository.clearUserToken(req.user.id.toString());
-    }
-  }
-
-  res.status(200).json({
-    success: true,
-    message: 'Logout successful',
-  });
-});
-
