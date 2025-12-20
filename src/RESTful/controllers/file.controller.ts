@@ -93,36 +93,36 @@ export const uploadFile = asyncHandler(async (req: AuthRequest, res: Response) =
 
   // Get referenceId and referenceType from request body (optional for now, can be updated later)
   const referenceId = req.body.referenceId ? parseInt(req.body.referenceId) : null;
-  const referenceType = req.body.referenceType || FileReferenceType.GENERAL;
+  const referenceType = req.body.referenceType || FileReferenceType.TICKET_ATTACHMENT;
 
   // Create file record in database
+  // Using legacy columns for now until migration adds new columns
   const fileRecord = await File.create({
-    referenceId,
-    referenceType,
-    fileName: file.filename,
-    fileExtension,
-    fileType,
-    fileSizeMB,
-    filePath: file.path, // Local path for now
-    storageProvider: StorageProvider.LOCAL,
-    uploadedBy: user.id,
-    uploadedAt: new Date(),
-    isDeleted: false,
-  });
+    filename: file.filename, // Legacy column
+    originalFilename: file.originalname, // Legacy column
+    path: file.path, // Legacy column
+    mimeType: file.mimetype, // Legacy column
+    size: file.size, // Legacy column in bytes
+    category: fileType === FileType.IMAGE ? 'image' : 'contract', // Legacy enum
+    entityType: referenceType === FileReferenceType.COMPANY ? 'company' : 
+                referenceType === FileReferenceType.CONTRACT ? 'contract' : 'user', // Legacy enum
+    entityId: referenceId || 0, // Legacy column
+    createdBy: user.id, // Legacy column
+  } as any); // Using 'as any' to bypass TypeScript strict checking for legacy fields
 
   res.status(201).json({
     success: true,
     message: 'File uploaded successfully',
     data: {
       id: fileRecord.id,
-      fileName: fileRecord.fileName,
-      fileExtension: fileRecord.fileExtension,
-      fileType: fileRecord.fileType,
-      fileSizeMB: fileRecord.fileSizeMB,
-      filePath: fileRecord.filePath,
-      referenceId: fileRecord.referenceId,
-      referenceType: fileRecord.referenceType,
-      uploadedAt: fileRecord.uploadedAt,
+      fileName: (fileRecord as any).filename || fileRecord.fileName,
+      fileExtension: fileExtension.replace('.', ''),
+      fileType: fileType,
+      fileSizeMB: fileSizeMB,
+      filePath: (fileRecord as any).path || fileRecord.filePath,
+      referenceId: (fileRecord as any).entityId || fileRecord.referenceId,
+      referenceType: referenceType,
+      uploadedAt: (fileRecord as any).createdAt || fileRecord.uploadedAt,
     },
   });
 });
@@ -164,30 +164,31 @@ export const uploadMultipleFiles = asyncHandler(async (req: AuthRequest, res: Re
     const fileType = getFileTypeFromExtension(fileExtension);
     const fileSizeMB = parseFloat(((file.size || 0) / (1024 * 1024)).toFixed(2));
 
+    // Using legacy columns for now until migration adds new columns
     const fileRecord = await File.create({
-      referenceId,
-      referenceType,
-      fileName: file.filename,
-      fileExtension,
-      fileType,
-      fileSizeMB,
-      filePath: file.path,
-      storageProvider: StorageProvider.LOCAL,
-      uploadedBy: user.id,
-      uploadedAt: new Date(),
-      isDeleted: false,
-    });
+      filename: file.filename, // Legacy column
+      originalFilename: file.originalname, // Legacy column
+      path: file.path, // Legacy column
+      mimeType: file.mimetype, // Legacy column
+      size: file.size || 0, // Legacy column in bytes
+      category: fileType === FileType.IMAGE ? 'image' : 'contract', // Legacy enum
+      entityType: referenceType === FileReferenceType.COMPANY ? 'company' : 
+                  referenceType === FileReferenceType.CONTRACT ? 'contract' : 
+                  referenceType === FileReferenceType.USER ? 'user' : 'user', // Legacy enum - using 'user' as fallback for TICKET_ATTACHMENT and others
+      entityId: referenceId || 0, // Legacy column
+      createdBy: user.id, // Legacy column
+    } as any); // Using 'as any' to bypass TypeScript strict checking for legacy fields
 
     uploadedFiles.push({
       id: fileRecord.id,
-      fileName: fileRecord.fileName,
-      fileExtension: fileRecord.fileExtension,
-      fileType: fileRecord.fileType,
-      fileSizeMB: fileRecord.fileSizeMB,
-      filePath: fileRecord.filePath,
-      referenceId: fileRecord.referenceId,
-      referenceType: fileRecord.referenceType,
-      uploadedAt: fileRecord.uploadedAt,
+      fileName: (fileRecord as any).filename || fileRecord.fileName,
+      fileExtension: fileExtension.replace('.', ''),
+      fileType: fileType,
+      fileSizeMB: fileSizeMB,
+      filePath: (fileRecord as any).path || fileRecord.filePath,
+      referenceId: (fileRecord as any).entityId || fileRecord.referenceId,
+      referenceType: referenceType,
+      uploadedAt: (fileRecord as any).createdAt || fileRecord.uploadedAt,
     });
   }
 

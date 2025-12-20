@@ -556,10 +556,11 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     }
 
     // Update files to link them to this ticket
+    // Using legacy columns for now until migration adds new columns
     await File.update(
       {
-        referenceId: ticket.id,
-        referenceType: FileReferenceType.TICKET_ATTACHMENT,
+        entityId: ticket.id, // Legacy column
+        // entityType left as is since old enum doesn't support ticket attachments
       },
       {
         where: {
@@ -719,10 +720,11 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     }
 
     // Update files to link them to this ticket
+    // Using legacy columns for now until migration adds new columns
     await File.update(
       {
-        referenceId: ticket.id,
-        referenceType: FileReferenceType.TICKET_ATTACHMENT,
+        entityId: ticket.id, // Legacy column
+        // entityType left as is since old enum doesn't support ticket attachments
       },
       {
         where: {
