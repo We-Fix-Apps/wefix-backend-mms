@@ -139,6 +139,25 @@ export class File extends Model {
   })
   public description?: string | null;
 
+  @Column({
+    allowNull: false,
+    comment: 'User who uploaded this file',
+    field: 'uploaded_by',
+    type: DataTypes.INTEGER,
+  })
+  public uploadedBy: number;
+
+  @Column({
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: 'File upload timestamp',
+    field: 'uploaded_at',
+    get: getDate('uploadedAt'),
+    set: setDate('uploadedAt'),
+    type: DataTypes.DATE,
+  })
+  public uploadedAt: Date;
+
   // Legacy columns (original schema)
   @Column({
     allowNull: true,
