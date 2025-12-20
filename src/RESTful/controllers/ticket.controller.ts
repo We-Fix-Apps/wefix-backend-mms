@@ -448,8 +448,8 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   }
 
   // Check if user has permission (admin or team leader)
-  // Role IDs: 18 = Admin, 19 = Team Leader
-  if (user.userRoleId !== 18 && user.userRoleId !== 19) {
+  // Role IDs: 18 = Admin, 20 = Team Leader
+  if (user.userRoleId !== 18 && user.userRoleId !== 20) {
     throw new AppError('Forbidden: Only Admins and Team Leaders can create tickets', 403, 'FORBIDDEN');
   }
 

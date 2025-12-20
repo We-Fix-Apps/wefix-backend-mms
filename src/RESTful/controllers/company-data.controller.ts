@@ -213,7 +213,7 @@ export const getSubServices = asyncHandler(async (req: AuthRequest, res: Respons
 
 /**
  * Get team leaders for the logged-in company admin's company
- * Team Leaders have roleId = 19
+ * Team Leaders have roleId = 20
  */
 export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user;
@@ -234,7 +234,7 @@ export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: 
   const teamLeaders = await User.findAll({
     where: {
       companyId: companyId,
-      userRoleId: 19, // Team Leader role (19)
+      userRoleId: 20, // Team Leader role (20)
       isActive: true,
       isDeleted: false,
     },
@@ -260,7 +260,7 @@ export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: 
 
 /**
  * Get technicians for the logged-in company admin's company
- * Technicians have roleId = 20
+ * Technicians have roleId = 21
  */
 export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user;
@@ -281,7 +281,7 @@ export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: 
   const technicians = await User.findAll({
     where: {
       companyId: companyId,
-      userRoleId: 20, // Technician role (20)
+      userRoleId: 21, // Technician role (21)
       isActive: true,
       isDeleted: false,
     },
