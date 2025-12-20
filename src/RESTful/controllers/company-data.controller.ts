@@ -211,3 +211,97 @@ export const getSubServices = asyncHandler(async (req: AuthRequest, res: Respons
   });
 });
 
+/**
+ * Get team leaders for the logged-in company admin's company
+ * Team Leaders have roleId = 19
+ */
+export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user;
+
+  if (!user) {
+    throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
+  }
+
+  const companyId = user.companyId;
+
+  if (!companyId) {
+    throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Import User model dynamically to avoid circular dependencies
+  const { User } = await import('../../db/models/user.model');
+
+  const teamLeaders = await User.findAll({
+    where: {
+      companyId: companyId,
+      userRoleId: 19, // Team Leader role (19)
+      isActive: true,
+      isDeleted: false,
+    },
+    attributes: ['id', 'fullName', 'userNumber', 'email'],
+    order: [['fullName', 'ASC']],
+  });
+
+  const formattedTeamLeaders = teamLeaders.map((leader) => ({
+    id: leader.id,
+    title: leader.fullName,
+    subtitle: leader.userNumber || leader.email || '',
+    fullName: leader.fullName,
+    userNumber: leader.userNumber,
+    email: leader.email,
+  }));
+
+  res.status(200).json({
+    success: true,
+    message: 'Team leaders retrieved successfully',
+    data: formattedTeamLeaders,
+  });
+});
+
+/**
+ * Get technicians for the logged-in company admin's company
+ * Technicians have roleId = 20
+ */
+export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user;
+
+  if (!user) {
+    throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
+  }
+
+  const companyId = user.companyId;
+
+  if (!companyId) {
+    throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Import User model dynamically to avoid circular dependencies
+  const { User } = await import('../../db/models/user.model');
+
+  const technicians = await User.findAll({
+    where: {
+      companyId: companyId,
+      userRoleId: 20, // Technician role (20)
+      isActive: true,
+      isDeleted: false,
+    },
+    attributes: ['id', 'fullName', 'userNumber', 'email'],
+    order: [['fullName', 'ASC']],
+  });
+
+  const formattedTechnicians = technicians.map((technician) => ({
+    id: technician.id,
+    title: technician.fullName,
+    subtitle: technician.userNumber || technician.email || '',
+    fullName: technician.fullName,
+    userNumber: technician.userNumber,
+    email: technician.email,
+  }));
+
+  res.status(200).json({
+    success: true,
+    message: 'Technicians retrieved successfully',
+    data: formattedTechnicians,
+  });
+});
+

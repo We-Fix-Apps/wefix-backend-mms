@@ -10,6 +10,8 @@ router.get('/branches', authenticateToken, companyDataController.getCompanyBranc
 router.get('/zones', authenticateToken, companyDataController.getCompanyZones);
 router.get('/main-services', authenticateToken, companyDataController.getMainServices);
 router.get('/sub-services', authenticateToken, companyDataController.getSubServices);
+router.get('/team-leaders', authenticateToken, companyDataController.getCompanyTeamLeaders);
+router.get('/technicians', authenticateToken, companyDataController.getCompanyTechnicians);
 
 export default router;
 

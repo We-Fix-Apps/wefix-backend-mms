@@ -480,7 +480,7 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   } = req.body;
 
   // Validation
-  if (!contractId || !branchId || !zoneId || !locationDescription || !ticketTypeId || 
+  if (!contractId || !branchId || !zoneId || !locationDescription || !locationMap || !ticketTypeId || 
       !ticketDate || !ticketTimeFrom || !ticketTimeTo || !assignToTeamLeaderId || 
       !assignToTechnicianId || !mainServiceId) {
     throw new AppError('Missing required fields', 400, 'VALIDATION_ERROR');
