@@ -47,10 +47,17 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   const refreshToken = generateRefreshToken(user);
 
   // Calculate token expiration time from JWT
-  const decodedToken = jwt.decode(accessToken) as { exp?: number } | null;
+  const decodedToken = jwt.decode(accessToken) as { exp?: number; iat?: number } | null;
   const tokenExpiresAt = decodedToken?.exp 
     ? new Date(decodedToken.exp * 1000) 
     : new Date(Date.now() + 3600 * 1000); // Default to 1 hour if can't decode
+
+  // Calculate expiresIn in seconds from the actual token expiration
+  const expiresIn = decodedToken?.exp && decodedToken?.iat
+    ? decodedToken.exp - decodedToken.iat
+    : decodedToken?.exp
+    ? Math.max(0, decodedToken.exp - Math.floor(Date.now() / 1000))
+    : 3600; // Default to 1 hour if can't decode
 
   // Save accessToken to database with prefix "mobile-access-token:"
   await userRepository.updateUserToken(user.id.toString(), `mobile-access-token:${accessToken}`, tokenExpiresAt);
@@ -63,7 +70,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
-      expiresIn: 3600,
+      expiresIn,
     },
   });
 });
@@ -90,12 +97,20 @@ export const refreshAccessToken = asyncHandler(async (req: AuthRequest, res: Res
     const accessToken = generateToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
+    // Calculate expiresIn from the actual token expiration
+    const decodedToken = jwt.decode(accessToken) as { exp?: number; iat?: number } | null;
+    const expiresIn = decodedToken?.exp && decodedToken?.iat
+      ? decodedToken.exp - decodedToken.iat
+      : decodedToken?.exp
+      ? Math.max(0, decodedToken.exp - Math.floor(Date.now() / 1000))
+      : 3600; // Default to 1 hour if can't decode
+
     res.status(200).json({
       success: true,
       accessToken,
       refreshToken: newRefreshToken,
       tokenType: 'Bearer',
-      expiresIn: 3600,
+      expiresIn,
     });
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
