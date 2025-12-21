@@ -1,14 +1,19 @@
 import { Response } from 'express';
-import jwt from 'jsonwebtoken';
-import UserRepository from '../services/user/user.repository';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+
 import { generateRefreshToken, generateToken } from '../../lib';
-import { AppError, asyncHandler } from '../middleware/error.middleware';
 import { AuthRequest } from '../middleware/auth.middleware';
+
+interface DecodedToken extends JwtPayload {
+  email: string;
+}
+import { AppError, asyncHandler } from '../middleware/error.middleware';
+import UserRepository from '../services/user/user.repository';
 
 const userRepository = new UserRepository();
 
 export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { email, password, deviceId, fcmToken } = req.body;
+  const { deviceId, email, fcmToken, password } = req.body;
 
   if (!email || !password) {
     throw new AppError('Email and password are required', 400, 'VALIDATION_ERROR');
@@ -87,8 +92,8 @@ export const refreshAccessToken = asyncHandler(async (req: AuthRequest, res: Res
     if (!secretKey) {
       throw new AppError('JWT_SECRET must be set in environment variables', 500, 'CONFIGURATION_ERROR');
     }
-    const decoded = jwt.verify(token, secretKey);
-    const user = await userRepository.validateRefreshToken(decoded['email']);
+    const decoded = jwt.verify(token, secretKey) as DecodedToken;
+    const user = await userRepository.validateRefreshToken(decoded.email);
 
     if (!user) {
       throw new AppError('Invalid refresh token', 401, 'INVALID_TOKEN');
@@ -267,7 +272,7 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
 
 export const getStudentsInCourseActivity = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { courseId, activityId } = req.params;
+    const { activityId, courseId } = req.params;
 
     if (!courseId || !activityId) {
       throw new AppError('Course ID and Activity ID are required', 400, 'VALIDATION_ERROR');
@@ -285,7 +290,7 @@ export const getStudentsInCourseActivity = asyncHandler(
 
 export const getStudentInCourseActivity = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { userId, activityId } = req.params;
+    const { activityId, userId } = req.params;
 
     if (!userId || !activityId) {
       throw new AppError('User ID and Activity ID are required', 400, 'VALIDATION_ERROR');

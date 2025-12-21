@@ -29,11 +29,11 @@ async function runMigrator() {
 
     // Handle "generate" command - auto-generate from models
     if (command === 'generate' || command === 'auto') {
-      const MigrationGenerator = require(path.join(__dirname, 'db', 'migration-generator.js')).MigrationGenerator;
+      const {MigrationGenerator} = require(path.join(__dirname, 'db', 'migration-generator.js'));
       const { MODELS } = require(path.join(__dirname, 'db', 'models', 'index.js'));
       
       // Extract migration name from arguments
-      let migrationName = args[1] || 'auto-generated';
+      const migrationName = args[1] || 'auto-generated';
       
       const generator = new MigrationGenerator(orm.queryInterface);
       const fs = require('fs');
@@ -51,8 +51,8 @@ async function runMigrator() {
       console.log('🔍 Comparing models with database schema...');
       
       // Generate migration for each model
-      let allUpOps: string[] = [];
-      let allDownOps: string[] = [];
+      const allUpOps: string[] = [];
+      const allDownOps: string[] = [];
       const allImports = new Set<string>(['DataTypes', 'QueryInterface']);
       
       for (const ModelClass of MODELS) {

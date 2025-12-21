@@ -1,9 +1,10 @@
 import express from 'express';
-import userRoutes from './user.routes';
-import logRoutes from './log.routes';
-import ticketRoutes from './ticket.routes';
+
 import companyDataRoutes from './company-data.routes';
 import fileRoutes from './file.routes';
+import logRoutes from './log.routes';
+import ticketRoutes from './ticket.routes';
+import userRoutes from './user.routes';
 
 const router = express.Router();
 

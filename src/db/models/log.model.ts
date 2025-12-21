@@ -2,9 +2,9 @@ import { DataTypes } from 'sequelize'
 import { BelongsTo, Column, CreatedAt, ForeignKey, Model, Table, UpdatedAt } from 'sequelize-typescript'
 
 
+import { Actions } from './enums'
 import { User } from './user.model'
 
-import { Actions } from './enums'
 import { getDate, getIsoTimestamp, setDate } from '../../lib'
 
 @Table({

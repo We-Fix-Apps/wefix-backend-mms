@@ -1,10 +1,10 @@
 import { DataTypes } from 'sequelize';
 import { BelongsTo, Column, CreatedAt, ForeignKey, Model, Table, UpdatedAt } from 'sequelize-typescript';
 
+import { CompanyStatus } from './enums';
 import { Lookup } from './lookup.model';
 import { User } from './user.model';
 
-import { CompanyStatus } from './enums';
 import { getDate, getIsoTimestamp, setDate, toLowerCase } from '../../lib';
 
 @Table({

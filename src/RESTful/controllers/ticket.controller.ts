@@ -1,29 +1,31 @@
 import { Response } from 'express';
-import { Ticket } from '../../db/models/ticket.model';
-import { Lookup, LookupCategory } from '../../db/models/lookup.model';
-import { User } from '../../db/models/user.model';
+import { Op } from 'sequelize';
+
+import { Branch } from '../../db/models/branch.model';
 import { Company } from '../../db/models/company.model';
 import { Contract } from '../../db/models/contract.model';
-import { Branch } from '../../db/models/branch.model';
+import { File } from '../../db/models/file.model';
+import { Lookup, LookupCategory } from '../../db/models/lookup.model';
+import { Ticket } from '../../db/models/ticket.model';
+import { User } from '../../db/models/user.model';
 import { Zone } from '../../db/models/zone.model';
-import { File, FileReferenceType } from '../../db/models/file.model';
-import { AppError, asyncHandler } from '../middleware/error.middleware';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { Op } from 'sequelize';
+import { AppError, asyncHandler } from '../middleware/error.middleware';
+
 
 /**
  * Get tickets for the logged-in company admin's company
  * Filters tickets by companyId and groups by ticket type (Corrective, Preventive, Emergency)
  */
 export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
   // Get companyId from the logged-in user
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -34,7 +36,7 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
   // - Admins (roleId 18) and Team Leaders (roleId 20) can see all company tickets
   const isTechnician = user.userRoleId === 21 || user.userRoleId === 22;
   const whereClause: any = {
-    companyId: companyId,
+    companyId,
     isDeleted: false,
   };
 
@@ -93,8 +95,8 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
       },
     ],
     order: [['createdAt', 'DESC']],
-    limit: limit,
-    offset: offset,
+    limit,
+    offset,
   });
 
   // Group tickets by type
@@ -131,8 +133,8 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
       },
     },
     pagination: {
-      page: page,
-      limit: limit,
+      page,
+      limit,
       total: totalCount,
       totalPages: Math.ceil(totalCount / limit),
       hasMore: offset + tickets.length < totalCount,
@@ -146,13 +148,13 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
  * Get ticket statistics for the company
  */
 export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -191,7 +193,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const correctiveCount = correctiveType
     ? await Ticket.count({
         where: {
-          companyId: companyId,
+          companyId,
           ticketTypeId: correctiveType.id,
           isDeleted: false,
         },
@@ -201,7 +203,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const preventiveCount = preventiveType
     ? await Ticket.count({
         where: {
-          companyId: companyId,
+          companyId,
           ticketTypeId: preventiveType.id,
           isDeleted: false,
         },
@@ -211,7 +213,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const emergencyCount = emergencyType
     ? await Ticket.count({
         where: {
-          companyId: companyId,
+          companyId,
           ticketTypeId: emergencyType.id,
           isDeleted: false,
         },
@@ -221,7 +223,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   // Get total count for verification
   const totalCount = await Ticket.count({
     where: {
-      companyId: companyId,
+      companyId,
       isDeleted: false,
     },
   });
@@ -235,7 +237,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const correctiveCompleted = correctiveType && completedStatus
     ? await Ticket.count({
         where: {
-          companyId: companyId,
+          companyId,
           ticketTypeId: correctiveType.id,
           ticketStatusId: completedStatus.id,
           isDeleted: false,
@@ -246,7 +248,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const preventiveCompleted = preventiveType && completedStatus
     ? await Ticket.count({
         where: {
-          companyId: companyId,
+          companyId,
           ticketTypeId: preventiveType.id,
           ticketStatusId: completedStatus.id,
           isDeleted: false,
@@ -257,7 +259,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   const emergencyCompleted = emergencyType && completedStatus
     ? await Ticket.count({
         where: {
-          companyId: companyId,
+          companyId,
           ticketTypeId: emergencyType.id,
           ticketStatusId: completedStatus.id,
           isDeleted: false,
@@ -270,7 +272,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
   for (const status of ticketStatuses) {
     statusCounts[status.name] = await Ticket.count({
       where: {
-        companyId: companyId,
+        companyId,
         ticketStatusId: status.id,
         isDeleted: false,
       },
@@ -308,7 +310,7 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
  * - Admins (18) and Team Leaders (20) can view all company tickets
  */
 export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
   const ticketId = parseInt(req.params.id);
 
   if (!user) {
@@ -319,7 +321,7 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
     throw new AppError('Invalid ticket ID', 400, 'VALIDATION_ERROR');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -332,7 +334,7 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
   
   const whereClause: any = {
       id: ticketId,
-      companyId: companyId,
+      companyId,
       isDeleted: false,
   };
 
@@ -456,7 +458,7 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
     // Convert server file path to accessible URL
     // Server path: /app/uploads/filename.ext or /path/to/app/uploads/filename.ext
     // URL path: /uploads/filename.ext
-    let filePath = file.filePath ?? file.path ?? '';
+    const filePath = file.filePath ?? file.path ?? '';
     
     // Extract filename from path
     const filename = filePath.split('/').pop() || file.filename || '';
@@ -588,7 +590,7 @@ function formatTicket(ticket: Ticket): any {
  * Only company admins and team leaders can create tickets
  */
 export const createTicket = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
@@ -600,31 +602,31 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     throw new AppError('Forbidden: Only Admins and Team Leaders can create tickets', 403, 'FORBIDDEN');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
   }
 
   const {
-    contractId,
-    branchId,
-    zoneId,
-    locationMap,
-    locationDescription,
-    ticketTypeId,
-    ticketDate,
-    ticketTimeFrom,
-    ticketTimeTo,
     assignToTeamLeaderId,
     assignToTechnicianId,
-    ticketDescription,
-    havingFemaleEngineer,
+    branchId,
+    contractId,
     customerName,
-    withMaterial,
+    fileIds,
+    havingFemaleEngineer,
+    locationDescription,
+    locationMap,
     mainServiceId,
     serviceDescription,
+    ticketDate,
+    ticketDescription,
+    ticketTimeFrom,
+    ticketTimeTo,
+    ticketTypeId,
     tools,
-    fileIds, // Array of file IDs to link to this ticket
+    withMaterial,
+    zoneId, // Array of file IDs to link to this ticket
   } = req.body;
 
   // Validation
@@ -782,7 +784,7 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
  * Tracks updatedBy & updatedAt automatically
  */
 export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
   const ticketId = parseInt(req.params.id);
 
   if (!user) {
@@ -793,7 +795,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     throw new AppError('Invalid ticket ID', 400, 'VALIDATION_ERROR');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
   }
@@ -801,22 +803,23 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
   // Check user role
   const isAdmin = user.userRoleId === 18;
   const isTeamLeader = user.userRoleId === 20;
-  const isRestrictedRole = user.userRoleId === 21 || user.userRoleId === 22 || user.userRoleId === 23 || user.userRoleId === 26;
+  const isTechnician = user.userRoleId === 21 || user.userRoleId === 22; // Technician (21) or Sub-Technician (22)
+  const isSuperUser = user.userRoleId === 26; // Super User
+  const isCompletelyRestricted = user.userRoleId === 23; // Role 23 cannot edit at all
 
-  // Only allow Admin and Team Leader roles
-  // Restricted roles (21, 22, 23, 26) cannot update tickets
-  if (!isAdmin && !isTeamLeader) {
+  // Block completely restricted roles (23)
+  if (isCompletelyRestricted) {
     throw new AppError(
-      `Forbidden: Only Company Admins and Team Leaders can update tickets. Your role (${user.userRoleId}) does not have permission to update tickets.`,
+      `Forbidden: Users with role ${user.userRoleId} cannot update tickets.`,
       403,
       'FORBIDDEN'
     );
   }
 
-  // Explicitly reject restricted roles
-  if (isRestrictedRole) {
+  // Allow Admin (18), Team Leader (20), Technicians (21, 22), and Super User (26)
+  if (!isAdmin && !isTeamLeader && !isTechnician && !isSuperUser) {
     throw new AppError(
-      `Forbidden: Users with role ${user.userRoleId} cannot update tickets. Only Company Admins (18) and Team Leaders (20) can update tickets.`,
+      `Forbidden: Your role (${user.userRoleId}) does not have permission to update tickets.`,
       403,
       'FORBIDDEN'
     );
@@ -826,7 +829,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
   const ticket = await Ticket.findOne({
     where: {
       id: ticketId,
-      companyId: companyId,
+      companyId,
       isDeleted: false,
     },
   });
@@ -846,45 +849,45 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   // Update fields
   const {
-    fileIds, // Array of file IDs to link to this ticket
-    contractId,
-    branchId,
-    zoneId,
-    locationMap,
-    locationDescription,
-    ticketTypeId,
-    ticketStatusId,
-    ticketDate,
-    ticketTimeFrom,
-    ticketTimeTo,
-    assignToTeamLeaderId,
+    assignToTeamLeaderId, // Array of file IDs to link to this ticket
     assignToTechnicianId,
-    ticketDescription,
-    havingFemaleEngineer,
+    branchId,
+    contractId,
     customerName,
-    withMaterial,
+    fileIds,
+    havingFemaleEngineer,
+    locationDescription,
+    locationMap,
     mainServiceId,
     serviceDescription,
+    ticketDate,
+    ticketDescription,
+    ticketStatusId,
+    ticketTimeFrom,
+    ticketTimeTo,
+    ticketTypeId,
     tools,
+    withMaterial,
+    zoneId,
   } = req.body;
 
-  // Technicians can ONLY update ticket status
+  // Technicians can ONLY update ticket status and add notes/comments
   // Reject any other field updates from Technicians
   if (isTechnician) {
-    const allowedFields = ['ticketStatusId'];
+    const allowedFields = ['ticketStatusId', 'serviceDescription']; // Allow status and notes
     const providedFields = Object.keys(req.body).filter(key => req.body[key] !== undefined && key !== 'fileIds');
     const unauthorizedFields = providedFields.filter(field => !allowedFields.includes(field));
 
     if (unauthorizedFields.length > 0) {
       throw new AppError(
-        `Forbidden: Technicians can only update ticket status. Cannot update: ${unauthorizedFields.join(', ')}`,
+        `Forbidden: Technicians can only update ticket status and add notes. Cannot update: ${unauthorizedFields.join(', ')}`,
         403,
         'FORBIDDEN'
       );
     }
   }
 
-  // Validate ticket type if provided (only for Admin/Team Leader)
+  // Validate ticket type if provided (only for Admin/Team Leader/Super User)
   if (ticketTypeId && !isTechnician) {
     const ticketType = await Lookup.findOne({
       where: { id: ticketTypeId, category: LookupCategory.TICKET_TYPE, isActive: true },
@@ -908,6 +911,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   // Role-based validation: Team Leaders can only update tickets assigned to themselves
   // They cannot reassign tickets to another Team Leader
+  // Admins and Super Users can reassign tickets to any Team Leader
   if (isTeamLeader && assignToTeamLeaderId !== undefined && assignToTeamLeaderId !== user.id) {
     throw new AppError(
       'Team Leaders can only update tickets assigned to themselves. You cannot reassign tickets to another Team Leader.',
@@ -916,7 +920,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     );
   }
 
-  // Validate hierarchy if fields are being updated (only for Admin/Team Leader)
+  // Validate hierarchy if fields are being updated (only for Admin/Team Leader/Super User)
   if (contractId !== undefined && !isTechnician) {
     const contract = await Contract.findByPk(contractId);
     if (!contract || contract.companyId !== companyId) {
@@ -939,7 +943,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     }
   }
 
-  // Validate Team Leader if being updated (only for Admin/Team Leader)
+  // Validate Team Leader if being updated (only for Admin/Team Leader/Super User)
   if (assignToTeamLeaderId !== undefined && !isTechnician) {
     const teamLeader = await User.findOne({
       where: { id: assignToTeamLeaderId, companyId, isDeleted: false },
@@ -953,7 +957,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     }
   }
 
-  // Validate Technician if being updated (only for Admin/Team Leader)
+  // Validate Technician if being updated (only for Admin/Team Leader/Super User)
   if (assignToTechnicianId !== undefined && !isTechnician) {
     const technician = await User.findOne({
       where: { id: assignToTechnicianId, companyId, isDeleted: false },
@@ -967,7 +971,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     }
   }
 
-  // Update other fields (only for Admin/Team Leader, Technicians can only update status)
+  // Update other fields (only for Admin/Team Leader/Super User, Technicians can only update status and notes)
   if (contractId !== undefined && !isTechnician) ticket.contractId = contractId;
   if (branchId !== undefined && !isTechnician) ticket.branchId = branchId;
   if (zoneId !== undefined && !isTechnician) ticket.zoneId = zoneId;
@@ -983,7 +987,7 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
   if (customerName !== undefined && !isTechnician) ticket.customerName = customerName;
   if (withMaterial !== undefined && !isTechnician) ticket.withMaterial = withMaterial;
   if (mainServiceId !== undefined && !isTechnician) ticket.mainServiceId = mainServiceId;
-  if (serviceDescription !== undefined && !isTechnician) ticket.serviceDescription = serviceDescription;
+  if (serviceDescription !== undefined) ticket.serviceDescription = serviceDescription; // Allow for both Technicians and Admin/Team Leader/Super User
   if (tools !== undefined && !isTechnician) ticket.tools = tools;
   
   // Track who updated the ticket and when

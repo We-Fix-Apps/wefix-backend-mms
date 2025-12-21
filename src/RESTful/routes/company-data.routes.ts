@@ -1,4 +1,5 @@
 import express from 'express';
+
 import * as companyDataController from '../controllers/company-data.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 

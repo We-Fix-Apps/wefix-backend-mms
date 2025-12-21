@@ -15,10 +15,10 @@ import { USER_DATA } from './usersSeed';
 const hashedPassword = '$2b$10$Q4bQvCwOaZZYpLm5aYvWauQx5lfuY.zXzXk3knSiro2VO1iMyHOy6';
 import { ZONES_DATA } from './zonesSeed';
 
-import { CompanyStatus } from '../models/enums';
 import { Branch } from '../models/branch.model';
 import { Company } from '../models/company.model';
 import { Contract } from '../models/contract.model';
+import { CompanyStatus } from '../models/enums';
 import { File, FileCategory, FileEntityType } from '../models/file.model';
 import { Lookup, LookupCategory } from '../models/lookup.model';
 import { MaintenanceService } from '../models/maintenance-service.model';

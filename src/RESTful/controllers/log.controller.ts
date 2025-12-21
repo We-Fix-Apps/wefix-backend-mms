@@ -1,8 +1,9 @@
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+
 import { USER_DATA } from '../../db/seeds/usersSeed';
-import { asyncHandler } from '../middleware/error.middleware';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { asyncHandler } from '../middleware/error.middleware';
 import { Actions } from '../types/log.types';
 
 export const getAllLogs = asyncHandler(async (req: AuthRequest, res: Response) => {

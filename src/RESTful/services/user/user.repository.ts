@@ -1,8 +1,13 @@
 import * as bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import { FindOptions } from 'sequelize/types';
+
 import { User } from '../../../db/models/user.model';
-import { CreateUserInput, UpdateUserInput, UserOrm, UserRoles } from '../../types/user.types';
+import { CreateUserInput, UpdateUserInput, UserOrm } from '../../types/user.types';
+
+interface DecodedToken extends JwtPayload {
+  email: string;
+}
 
 class UserRepository {
   public authenticateUser: (email: string, password: string, deviceId: string, fcmToken: string) => Promise<UserOrm | null>;
@@ -91,9 +96,9 @@ class UserRepository {
       if (!secretKey) {
         throw new Error('JWT_SECRET must be set in environment variables');
       }
-      const decoded = jwt.verify(token, secretKey);
+      const decoded = jwt.verify(token, secretKey) as DecodedToken;
 
-      const userEmail = decoded['email'];
+      const userEmail = decoded.email;
 
       const user = await User.findOne({ where: { email: userEmail } });
 
@@ -136,8 +141,8 @@ class UserRepository {
         userNumber: userData.userNumber || `USR${Date.now()}`,
         password: hashedPassword,
         userRoleId: userData.userRoleId || 1,
-        fcmToken: fcmToken,
-        deviceId: deviceId,
+        fcmToken,
+        deviceId,
       };
 
       if (userData.mobileNumber) {

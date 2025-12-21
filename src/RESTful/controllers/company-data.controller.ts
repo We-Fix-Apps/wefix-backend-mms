@@ -1,23 +1,24 @@
 import { Response } from 'express';
-import { Contract } from '../../db/models/contract.model';
-import { Branch } from '../../db/models/branch.model';
-import { Zone } from '../../db/models/zone.model';
-import { Lookup, LookupCategory } from '../../db/models/lookup.model';
-import { AppError, asyncHandler } from '../middleware/error.middleware';
-import { AuthRequest } from '../middleware/auth.middleware';
 import { Op } from 'sequelize';
+
+import { Branch } from '../../db/models/branch.model';
+import { Contract } from '../../db/models/contract.model';
+import { Lookup, LookupCategory } from '../../db/models/lookup.model';
+import { Zone } from '../../db/models/zone.model';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { AppError, asyncHandler } from '../middleware/error.middleware';
 
 /**
  * Get contracts for the logged-in company admin's company
  */
 export const getCompanyContracts = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -25,7 +26,7 @@ export const getCompanyContracts = asyncHandler(async (req: AuthRequest, res: Re
 
   const contracts = await Contract.findAll({
     where: {
-      companyId: companyId,
+      companyId,
       isDeleted: false,
     },
     order: [['createdAt', 'DESC']],
@@ -50,13 +51,13 @@ export const getCompanyContracts = asyncHandler(async (req: AuthRequest, res: Re
  * Get branches for the logged-in company admin's company
  */
 export const getCompanyBranches = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -64,7 +65,7 @@ export const getCompanyBranches = asyncHandler(async (req: AuthRequest, res: Res
 
   const branches = await Branch.findAll({
     where: {
-      companyId: companyId,
+      companyId,
       isDeleted: false,
     },
     order: [['createdAt', 'DESC']],
@@ -90,13 +91,13 @@ export const getCompanyBranches = asyncHandler(async (req: AuthRequest, res: Res
  * Get zones for the logged-in company admin's company branches
  */
 export const getCompanyZones = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -105,7 +106,7 @@ export const getCompanyZones = asyncHandler(async (req: AuthRequest, res: Respon
   // Get all branches for the company first
   const branches = await Branch.findAll({
     where: {
-      companyId: companyId,
+      companyId,
       isDeleted: false,
     },
     attributes: ['id'],
@@ -216,13 +217,13 @@ export const getSubServices = asyncHandler(async (req: AuthRequest, res: Respons
  * Team Leaders have roleId = 20
  */
 export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -233,7 +234,7 @@ export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: 
 
   const teamLeaders = await User.findAll({
     where: {
-      companyId: companyId,
+      companyId,
       userRoleId: 20, // Team Leader role (20)
       isActive: true,
       isDeleted: false,
@@ -263,13 +264,13 @@ export const getCompanyTeamLeaders = asyncHandler(async (req: AuthRequest, res: 
  * Technicians have roleId = 21
  */
 export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const {user} = req;
 
   if (!user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
 
-  const companyId = user.companyId;
+  const {companyId} = user;
 
   if (!companyId) {
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
@@ -280,7 +281,7 @@ export const getCompanyTechnicians = asyncHandler(async (req: AuthRequest, res: 
 
   const technicians = await User.findAll({
     where: {
-      companyId: companyId,
+      companyId,
       userRoleId: 21, // Technician role (21)
       isActive: true,
       isDeleted: false,

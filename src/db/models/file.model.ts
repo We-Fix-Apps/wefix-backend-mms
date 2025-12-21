@@ -1,9 +1,8 @@
 import { DataTypes } from 'sequelize';
-import { BelongsTo, Column, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { Column, Model, Table } from 'sequelize-typescript';
 
-import { User } from './user.model';
 
-import { getDate, getIsoTimestamp, setDate } from '../../lib';
+import { getDate, setDate } from '../../lib';
 
 // Legacy enums for backward compatibility
 export enum FileCategory {

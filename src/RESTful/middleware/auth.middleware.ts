@@ -1,9 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+
 import { User } from '../../db/models/user.model';
 
 export interface AuthRequest extends Request {
   user?: any;
+}
+
+interface DecodedToken extends JwtPayload {
+  email: string;
 }
 
 export const authenticateToken = async (
@@ -12,7 +17,7 @@ export const authenticateToken = async (
   next: NextFunction
 ) => {
   try {
-    const authHeader = req.headers['authorization'];
+    const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
@@ -23,8 +28,8 @@ export const authenticateToken = async (
     if (!secretKey) {
       return res.status(500).json({ message: 'JWT_SECRET must be set in environment variables' });
     }
-    const decoded = jwt.verify(token, secretKey);
-    const userEmail = decoded['email'];
+    const decoded = jwt.verify(token, secretKey) as DecodedToken;
+    const userEmail = decoded.email;
 
     const user = await User.findOne({ where: { email: userEmail } });
 
@@ -51,7 +56,7 @@ export const optionalAuth = async (
   next: NextFunction
 ) => {
   try {
-    const authHeader = req.headers['authorization'];
+    const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
 
     if (token) {
@@ -59,8 +64,8 @@ export const optionalAuth = async (
     if (!secretKey) {
       return res.status(500).json({ message: 'JWT_SECRET must be set in environment variables' });
     }
-    const decoded = jwt.verify(token, secretKey);
-      const userEmail = decoded['email'];
+    const decoded = jwt.verify(token, secretKey) as DecodedToken;
+      const userEmail = decoded.email;
       const user = await User.findOne({ where: { email: userEmail } });
       if (user) {
         req.user = user;

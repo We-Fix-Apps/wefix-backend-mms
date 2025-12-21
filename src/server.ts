@@ -1,19 +1,21 @@
 import 'reflect-metadata'
+import bodyParser from 'body-parser';
+import cors from 'cors';
 import dotenv from 'dotenv'
 import express, { Application } from 'express'
 import fs from 'fs';
 import https from 'https';
 import path from 'path';
-import cors from 'cors';
-import bodyParser from 'body-parser';
 import createMiddleware from 'redoc-express';
-import { USER_DATA } from './db/seeds'
-import { User } from './db/models'
 import { Umzug } from 'umzug'
-import { orm, ORM } from './db/orm'
-import apiRoutes from './RESTful/routes';
-import { errorHandler } from './RESTful/middleware/error.middleware';
+
 import { openApiSpec } from './RESTful/docs/openapi';
+import { errorHandler } from './RESTful/middleware/error.middleware';
+import apiRoutes from './RESTful/routes';
+import { User } from './db/models'
+import { orm, ORM } from './db/orm'
+import { USER_DATA } from './db/seeds'
+
 
 // Load environment variables
 dotenv.config({ path: '.env' })
