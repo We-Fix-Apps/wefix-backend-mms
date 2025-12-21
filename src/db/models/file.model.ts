@@ -88,11 +88,11 @@ export const convertFileEntityTypeToReferenceType = (entityType: FileEntityType)
 export class File extends Model {
   @Column({
     allowNull: false,
+    autoIncrement: true,
     primaryKey: true,
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    type: DataTypes.INTEGER,
   })
-  public id: string;
+  public id: number;
 
   // New required columns (added by migration)
   @Column({
