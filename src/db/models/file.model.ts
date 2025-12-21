@@ -163,16 +163,8 @@ export class File extends Model {
   })
   public uploadedAt: Date;
 
-  // Reference type (new schema)
-  @Column({
-    allowNull: true,
-    comment: 'Reference type (TICKET_ATTACHMENT, COMPANY, USER, etc.)',
-    field: 'reference_type',
-    type: DataTypes.ENUM({ values: Object.values(FileReferenceType) }),
-  })
-  public referenceType?: FileReferenceType | null;
-
   // Legacy columns (original schema)
+  // Note: referenceType column doesn't exist in database, so we removed it from the model
   @Column({
     allowNull: true,
     comment: 'Entity ID (ticket ID, company ID, etc.)',

@@ -404,22 +404,12 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
   }
 
   // Fetch files attached to this ticket from files table
-  // Files are linked to tickets using entityId (ticket ID) and referenceType (TICKET_ATTACHMENT)
-  // Also check entityType 'ticket' or 'user' for backward compatibility with old records
+  // Files are linked to tickets using entityId (ticket ID) and entityType ('ticket' for new records, 'user' for old records)
+  // Note: referenceType column doesn't exist in database, so we use entityType to identify ticket attachments
   const ticketFiles = await File.findAll({
     where: {
       entityId: ticketId,
-      [Op.or]: [
-        { referenceType: FileReferenceType.TICKET_ATTACHMENT },
-        { 
-          referenceType: null, // For old records without referenceType
-          entityType: 'ticket' // New records use 'ticket' entity_type
-        },
-        {
-          referenceType: null, // For very old records
-          entityType: 'user' // Old records used 'user' entity_type
-        }
-      ],
+      entityType: { [Op.in]: ['ticket', 'user'] }, // Support both 'ticket' (new) and 'user' (old) entity_type
       isDeleted: false,
     },
     attributes: ['id', 'filename', 'originalFilename', 'path', 'filePath', 'size', 'fileSizeMB', 'category', 'createdAt'],
