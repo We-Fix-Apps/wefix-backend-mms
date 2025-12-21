@@ -1,11 +1,25 @@
 import { QueryInterface } from 'sequelize';
 
 export const up = async (queryInterface: QueryInterface) => {
-  console.log('Adding "ticket" value to entity_type enum...');
-  const enumName = '"entity_type"';
+  console.log('Adding "ticket" value to enum_files_entity_type enum...');
+  const enumName = 'enum_files_entity_type';
   const valueToAdd = 'ticket';
 
   try {
+    // Check if the value already exists
+    const [results] = await queryInterface.sequelize.query(`
+      SELECT enumlabel FROM pg_enum 
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = '${enumName}')
+      AND enumlabel = '${valueToAdd}';
+    `);
+    
+    if (Array.isArray(results) && results.length > 0) {
+      console.log(`Note: "${valueToAdd}" already exists in ${enumName}`);
+      return;
+    }
+
+    // PostgreSQL doesn't support IF NOT EXISTS for ALTER TYPE ADD VALUE
+    // So we check first and only add if it doesn't exist
     await queryInterface.sequelize.query(`ALTER TYPE ${enumName} ADD VALUE '${valueToAdd}';`);
     console.log(`✓ Added "${valueToAdd}" to ${enumName}`);
   } catch (error: any) {
