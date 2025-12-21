@@ -403,11 +403,12 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
     }));
   }
 
-  // Fetch files attached to this ticket
-  // Files are linked to tickets using entityId (ticket ID)
+  // Fetch files attached to this ticket from files table
+  // Files are linked to tickets using entityId (ticket ID) and referenceType (TICKET_ATTACHMENT)
   const ticketFiles = await File.findAll({
     where: {
       entityId: ticketId,
+      referenceType: FileReferenceType.TICKET_ATTACHMENT,
       isDeleted: false,
     },
     attributes: ['id', 'filename', 'originalFilename', 'path', 'filePath', 'size', 'fileSizeMB', 'category', 'createdAt'],
