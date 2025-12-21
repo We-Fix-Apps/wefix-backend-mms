@@ -3,6 +3,9 @@ import { Ticket } from '../../db/models/ticket.model';
 import { Lookup, LookupCategory } from '../../db/models/lookup.model';
 import { User } from '../../db/models/user.model';
 import { Company } from '../../db/models/company.model';
+import { Contract } from '../../db/models/contract.model';
+import { Branch } from '../../db/models/branch.model';
+import { Zone } from '../../db/models/zone.model';
 import { File, FileReferenceType } from '../../db/models/file.model';
 import { AppError, asyncHandler } from '../middleware/error.middleware';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -472,6 +475,60 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
       !ticketDate || !ticketTimeFrom || !ticketTimeTo || !assignToTeamLeaderId || 
       !assignToTechnicianId || !mainServiceId) {
     throw new AppError('Missing required fields', 400, 'VALIDATION_ERROR');
+  }
+
+  // Role-based validation: Team Leaders CANNOT create tickets for another Team Leader
+  // They can ONLY assign tickets to themselves (their own user ID)
+  if (user.userRoleId === 20 && assignToTeamLeaderId !== user.id) {
+    throw new AppError(
+      'Team Leaders can only create tickets assigned to themselves. You cannot assign tickets to another Team Leader.',
+      403,
+      'FORBIDDEN'
+    );
+  }
+
+  // Verify contract belongs to user's company
+  const contract = await Contract.findByPk(contractId);
+  if (!contract || contract.companyId !== companyId) {
+    throw new AppError('Invalid contract or contract does not belong to your company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Verify branch belongs to user's company
+  const branch = await Branch.findByPk(branchId);
+  if (!branch || branch.companyId !== companyId) {
+    throw new AppError('Invalid branch or branch does not belong to your company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Verify zone belongs to the branch
+  const zone = await Zone.findByPk(zoneId);
+  if (!zone || zone.branchId !== branchId) {
+    throw new AppError('Invalid zone or zone does not belong to the selected branch', 400, 'VALIDATION_ERROR');
+  }
+
+  // Verify Team Leader belongs to user's company and has Team Leader role
+  const teamLeader = await User.findOne({
+    where: { id: assignToTeamLeaderId, companyId, isDeleted: false },
+    include: [{ model: Lookup, as: 'userRoleLookup', required: false }],
+  });
+  if (!teamLeader) {
+    throw new AppError('Team Leader not found or does not belong to your company', 400, 'VALIDATION_ERROR');
+  }
+  if (teamLeader.userRoleId !== 20) {
+    throw new AppError('Assigned user is not a Team Leader', 400, 'VALIDATION_ERROR');
+  }
+
+  // Verify Technician belongs to user's company and has Technician role
+  const technician = await User.findOne({
+    where: { id: assignToTechnicianId, companyId, isDeleted: false },
+    include: [{ model: Lookup, as: 'userRoleLookup', required: false }],
+  });
+  if (!technician) {
+    throw new AppError('Technician not found or does not belong to your company', 400, 'VALIDATION_ERROR');
+  }
+  // Technician role ID is typically 21 or 22 (check your lookup table)
+  // For now, we'll just verify they're not a Team Leader or Admin
+  if (technician.userRoleId === 18 || technician.userRoleId === 20) {
+    throw new AppError('Assigned user cannot be an Admin or Team Leader', 400, 'VALIDATION_ERROR');
   }
 
   // Verify ticket type exists
