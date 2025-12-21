@@ -105,7 +105,8 @@ export class Server {
     
     // Serve uploaded files from uploads directory (must be before 404 handler)
     // This allows direct access to uploaded files via /uploads/filename.ext
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    // Use the volume mount path for persistence in Docker: /app/public/WeFixFiles
+    const uploadsDir = path.join(process.cwd(), 'public', 'WeFixFiles');
     
     // Create uploads directory if it doesn't exist
     if (!fs.existsSync(uploadsDir)) {
@@ -114,6 +115,10 @@ export class Server {
     }
     
     // Serve static files from uploads directory
+    // Also serve from old location for backward compatibility with existing files
+    const oldUploadsDir = path.join(process.cwd(), 'uploads');
+    
+    // Serve from new location (volume mount)
     this.app.use('/uploads', express.static(uploadsDir, {
       // Set proper headers for file downloads
       setHeaders: (res, filePath) => {
@@ -133,6 +138,26 @@ export class Server {
         res.setHeader('Access-Control-Allow-Origin', '*');
       },
     }));
+    
+    // Also serve from old location for backward compatibility (if file not found in new location)
+    if (fs.existsSync(oldUploadsDir)) {
+      this.app.use('/uploads', express.static(oldUploadsDir, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.m4a') || filePath.endsWith('.mp3') || filePath.endsWith('.wav')) {
+            res.setHeader('Content-Type', 'audio/mpeg');
+          } else if (filePath.endsWith('.mp4') || filePath.endsWith('.mov')) {
+            res.setHeader('Content-Type', 'video/mp4');
+          } else if (filePath.endsWith('.pdf')) {
+            res.setHeader('Content-Type', 'application/pdf');
+          } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+            res.setHeader('Content-Type', 'image/jpeg');
+          } else if (filePath.endsWith('.png')) {
+            res.setHeader('Content-Type', 'image/png');
+          }
+          res.setHeader('Access-Control-Allow-Origin', '*');
+        },
+      }));
+    }
     console.log(`📁 Serving uploads from: ${uploadsDir}`);
     
     // Root endpoint

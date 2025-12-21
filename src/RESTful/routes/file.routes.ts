@@ -11,6 +11,9 @@ router.post('/upload-multiple', authenticateToken, fileController.upload.array('
 // Get files by reference
 router.get('/', authenticateToken, fileController.getFilesByReference);
 
+// Serve file by ID (public access for file downloads)
+router.get('/:id', fileController.serveFileById);
+
 // Delete file
 router.delete('/:id', authenticateToken, fileController.deleteFile);
 

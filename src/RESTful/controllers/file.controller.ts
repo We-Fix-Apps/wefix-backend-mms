@@ -9,7 +9,9 @@ import { AuthRequest } from '../middleware/auth.middleware';
 // Configure multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
+    // Use the volume mount path for persistence in Docker
+    // This matches the volume mount in docker-compose.yml: /app/public/WeFixFiles
+    const uploadDir = path.join(process.cwd(), 'public', 'WeFixFiles');
     // Create uploads directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -326,12 +328,22 @@ export const getFilesByReference = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   // Use legacy columns for querying
+  // Map referenceType to entityType (now supports 'ticket' for ticket attachments)
+  let entityType: string;
+  if (referenceType === FileReferenceType.TICKET_ATTACHMENT) {
+    entityType = 'ticket'; // Use 'ticket' now that it's in the enum
+  } else if (referenceType === FileReferenceType.COMPANY) {
+    entityType = 'company';
+  } else if (referenceType === FileReferenceType.CONTRACT) {
+    entityType = 'contract';
+  } else {
+    entityType = 'user';
+  }
+
   const files = await File.findAll({
     where: {
       entityId: referenceId,
-      entityType: referenceType === FileReferenceType.TICKET_ATTACHMENT ? 'user' : 
-                  referenceType === FileReferenceType.COMPANY ? 'company' : 
-                  referenceType === FileReferenceType.CONTRACT ? 'contract' : 'user',
+      entityType: entityType,
     },
     order: [['createdAt', 'DESC']],
   });
@@ -382,8 +394,90 @@ export const deleteFile = asyncHandler(async (req: AuthRequest, res: Response) =
   });
 });
 
+/**
+ * Serve file by ID
+ * GET /api/v1/files/:id
+ * This endpoint serves the actual file content, not JSON metadata
+ */
+export const serveFileById = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const fileId = parseInt(req.params.id);
+  if (isNaN(fileId)) {
+    throw new AppError('Invalid file ID', 400, 'VALIDATION_ERROR');
+  }
 
+  const file = await File.findByPk(fileId);
+  if (!file) {
+    throw new AppError('File not found', 404, 'NOT_FOUND');
+  }
 
+  // Get the file path - try filePath from database first, then path, then construct from filename
+  const filename = (file as any).filename;
+  if (!filename) {
+    throw new AppError('File filename not found', 404, 'NOT_FOUND');
+  }
+
+  // Try multiple locations in order of preference
+  let actualFilePath: string | null = null;
+  
+  // 1. Try file_path from database (if it exists and is a valid path)
+  const dbFilePath = (file as any).filePath || (file as any).path;
+  if (dbFilePath && fs.existsSync(dbFilePath)) {
+    actualFilePath = dbFilePath;
+  }
+  
+  // 2. Try new location (volume mount - persisted)
+  if (!actualFilePath) {
+    const newLocationPath = path.join(process.cwd(), 'public', 'WeFixFiles', filename);
+    if (fs.existsSync(newLocationPath)) {
+      actualFilePath = newLocationPath;
+    }
+  }
+  
+  // 3. Fallback to old location (not persisted, may be lost after restart)
+  if (!actualFilePath) {
+    const oldLocationPath = path.join(process.cwd(), 'uploads', filename);
+    if (fs.existsSync(oldLocationPath)) {
+      actualFilePath = oldLocationPath;
+    }
+  }
+  
+  // 4. If still not found, check if file_path in DB points to old location
+  if (!actualFilePath && dbFilePath) {
+    // Try to use the path from database even if it doesn't exist (for debugging)
+    // But only if it's an absolute path
+    if (path.isAbsolute(dbFilePath) && fs.existsSync(dbFilePath)) {
+      actualFilePath = dbFilePath;
+    }
+  }
+
+  if (!actualFilePath) {
+    throw new AppError(
+      `File not found on server. The file may have been lost after container restart. File was stored at: ${dbFilePath || 'unknown location'}`,
+      404,
+      'NOT_FOUND'
+    );
+  }
+
+  // Set appropriate headers
+  const ext = path.extname(actualFilePath).toLowerCase();
+  if (ext === '.m4a' || ext === '.mp3' || ext === '.wav') {
+    res.setHeader('Content-Type', 'audio/mpeg');
+  } else if (ext === '.mp4' || ext === '.mov') {
+    res.setHeader('Content-Type', 'video/mp4');
+  } else if (ext === '.pdf') {
+    res.setHeader('Content-Type', 'application/pdf');
+  } else if (ext === '.jpg' || ext === '.jpeg') {
+    res.setHeader('Content-Type', 'image/jpeg');
+  } else if (ext === '.png') {
+    res.setHeader('Content-Type', 'image/png');
+  }
+  
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Disposition', `inline; filename="${(file as any).originalFilename || filename}"`);
+
+  // Send the file
+  res.sendFile(actualFilePath);
+});
 
 
 
