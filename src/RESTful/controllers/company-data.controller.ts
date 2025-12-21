@@ -330,3 +330,29 @@ export const getTicketTypes = asyncHandler(async (req: AuthRequest, res: Respons
   });
 });
 
+/**
+ * Get ticket statuses (lookups with category TICKET_STATUS)
+ */
+export const getTicketStatuses = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const ticketStatuses = await Lookup.findAll({
+    where: { category: LookupCategory.TICKET_STATUS, isActive: true },
+    attributes: ['id', 'name', 'nameArabic', 'category'],
+    order: [['orderId', 'ASC']],
+  });
+
+  const formattedStatuses = ticketStatuses.map((status) => ({
+    id: status.id,
+    title: status.name,
+    subtitle: status.nameArabic || '',
+    name: status.name,
+    nameArabic: status.nameArabic,
+  }));
+
+  res.status(200).json({
+    success: true,
+    message: 'Ticket statuses retrieved successfully',
+    data: formattedStatuses,
+  });
+});
+
+

@@ -13,6 +13,8 @@ router.get('/sub-services', authenticateToken, companyDataController.getSubServi
 router.get('/team-leaders', authenticateToken, companyDataController.getCompanyTeamLeaders);
 router.get('/technicians', authenticateToken, companyDataController.getCompanyTechnicians);
 router.get('/ticket-types', authenticateToken, companyDataController.getTicketTypes);
+router.get('/ticket-statuses', authenticateToken, companyDataController.getTicketStatuses);
 
 export default router;
+
 

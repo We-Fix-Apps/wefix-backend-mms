@@ -331,9 +331,9 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
   console.log(`[getTicketById] isTechnician: ${isTechnician}, companyId: ${companyId}`);
   
   const whereClause: any = {
-    id: ticketId,
-    companyId: companyId,
-    isDeleted: false,
+      id: ticketId,
+      companyId: companyId,
+      isDeleted: false,
   };
 
   // If user is a Technician, verify the ticket is assigned to them
@@ -777,7 +777,7 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
 /**
  * Update an existing ticket
  * - Company Admin (18) and Team Leader (20) can update all ticket fields
- * - Technicians (21) and Sub-Technicians (22) can ONLY update ticket status
+ * - Restricted roles (21, 22, 23, 26) CANNOT update tickets
  * Rejects unauthorized updates
  * Tracks updatedBy & updatedAt automatically
  */
@@ -801,12 +801,22 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
   // Check user role
   const isAdmin = user.userRoleId === 18;
   const isTeamLeader = user.userRoleId === 20;
-  const isTechnician = user.userRoleId === 21 || user.userRoleId === 22;
+  const isRestrictedRole = user.userRoleId === 21 || user.userRoleId === 22 || user.userRoleId === 23 || user.userRoleId === 26;
 
-  // Only allow Admin, Team Leader, or Technician roles
-  if (!isAdmin && !isTeamLeader && !isTechnician) {
+  // Only allow Admin and Team Leader roles
+  // Restricted roles (21, 22, 23, 26) cannot update tickets
+  if (!isAdmin && !isTeamLeader) {
     throw new AppError(
-      'Forbidden: Only Company Admins, Team Leaders, and Technicians can update tickets',
+      `Forbidden: Only Company Admins and Team Leaders can update tickets. Your role (${user.userRoleId}) does not have permission to update tickets.`,
+      403,
+      'FORBIDDEN'
+    );
+  }
+
+  // Explicitly reject restricted roles
+  if (isRestrictedRole) {
+    throw new AppError(
+      `Forbidden: Users with role ${user.userRoleId} cannot update tickets. Only Company Admins (18) and Team Leaders (20) can update tickets.`,
       403,
       'FORBIDDEN'
     );
