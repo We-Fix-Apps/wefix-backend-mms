@@ -302,7 +302,10 @@ export const getTicketStatistics = asyncHandler(async (req: AuthRequest, res: Re
 });
 
 /**
- * Get ticket details by ID for the logged-in company admin's company
+ * Get ticket details by ID for the logged-in company user
+ * Role-based access control:
+ * - Technicians (21) and Sub-Technicians (22) can only view tickets assigned to them
+ * - Admins (18) and Team Leaders (20) can view all company tickets
  */
 export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user;
@@ -322,13 +325,27 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
   }
 
+  // Role-based filtering: Technicians can only view tickets assigned to them
+  const isTechnician = user.userRoleId === 21 || user.userRoleId === 22;
+  console.log(`[getTicketById] User: ${user.fullName} (ID: ${user.id}, roleId: ${user.userRoleId}), Ticket: ${ticketId}`);
+  console.log(`[getTicketById] isTechnician: ${isTechnician}, companyId: ${companyId}`);
+  
+  const whereClause: any = {
+    id: ticketId,
+    companyId: companyId,
+    isDeleted: false,
+  };
+
+  // If user is a Technician, verify the ticket is assigned to them
+  if (isTechnician) {
+    whereClause.assignToTechnicianId = user.id;
+    console.log(`[getTicketById] Technician access - filtering by assignToTechnicianId: ${user.id}`);
+  }
+
   // Fetch ticket with all related data
+  console.log(`[getTicketById] Querying ticket with whereClause:`, whereClause);
   const ticket = await Ticket.findOne({
-    where: {
-      id: ticketId,
-      companyId: companyId,
-      isDeleted: false,
-    },
+    where: whereClause,
     include: [
       {
         model: Lookup,
@@ -391,8 +408,17 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
   });
 
   if (!ticket) {
-    throw new AppError('Ticket not found or access denied', 404, 'NOT_FOUND');
+    console.log(`[getTicketById] Ticket not found - ticketId: ${ticketId}, userId: ${user.id}, userRoleId: ${user.userRoleId}`);
+    throw new AppError(
+      isTechnician 
+        ? 'Ticket not found or not assigned to you. You can only view tickets assigned to you.' 
+        : 'Ticket not found or access denied',
+      404,
+      'NOT_FOUND'
+    );
   }
+  
+  console.log(`[getTicketById] Ticket found - ID: ${ticket.id}, assignToTechnicianId: ${ticket.assignToTechnicianId}`);
 
   // Fetch tool names if tools array exists
   let toolsWithNames: any[] = [];
