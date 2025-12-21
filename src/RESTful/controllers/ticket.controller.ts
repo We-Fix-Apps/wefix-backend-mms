@@ -29,6 +29,20 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
     throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
   }
 
+  // Role-based filtering:
+  // - Technicians (roleId 21) and Sub-Technicians (roleId 22) can only see tickets assigned to them
+  // - Admins (roleId 18) and Team Leaders (roleId 20) can see all company tickets
+  const isTechnician = user.userRoleId === 21 || user.userRoleId === 22;
+  const whereClause: any = {
+    companyId: companyId,
+    isDeleted: false,
+  };
+
+  // If user is a Technician, filter to show only tickets assigned to them
+  if (isTechnician) {
+    whereClause.assignToTechnicianId = user.id;
+  }
+
   // Get ticket type lookups
   const ticketTypes = await Lookup.findAll({
     where: {
@@ -47,20 +61,14 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
   const limit = parseInt(req.query.limit as string) || 20;
   const offset = (page - 1) * limit;
 
-  // Get total count for pagination
+  // Get total count for pagination (with role-based filtering)
   const totalCount = await Ticket.count({
-    where: {
-      companyId: companyId,
-      isDeleted: false,
-    },
+    where: whereClause,
   });
 
-  // Fetch tickets for the company with pagination
+  // Fetch tickets for the company with pagination (with role-based filtering)
   const tickets = await Ticket.findAll({
-    where: {
-      companyId: companyId,
-      isDeleted: false,
-    },
+    where: whereClause,
     include: [
       {
         model: Lookup,
