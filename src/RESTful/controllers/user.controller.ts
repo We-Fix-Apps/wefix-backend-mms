@@ -12,8 +12,6 @@ interface DecodedToken extends JwtPayload {
 import { AppError, asyncHandler } from '../middleware/error.middleware';
 import UserRepository from '../services/user/user.repository';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
 // Configure multer for profile image uploads
 const profileImageStorage = multer.diskStorage({
