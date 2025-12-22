@@ -629,10 +629,27 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     zoneId, // Array of file IDs to link to this ticket
   } = req.body;
 
-  // Validation
-  if (!contractId || !branchId || !zoneId || !locationDescription || !locationMap || !ticketTypeId || 
-      !ticketDate || !ticketTimeFrom || !ticketTimeTo || !assignToTeamLeaderId || 
-      !assignToTechnicianId || !mainServiceId) {
+  // Get ticket type to check if it's Emergency and validate it exists
+  const ticketType = await Lookup.findOne({
+    where: { id: ticketTypeId, category: LookupCategory.TICKET_TYPE, isActive: true },
+  });
+  if (!ticketType) {
+    throw new AppError('Invalid ticket type', 400, 'VALIDATION_ERROR');
+  }
+  
+  const isEmergency = ticketType.name.toLowerCase() === 'emergency' || 
+                      ticketType.code === 'EMRG';
+
+  // Validation - Emergency tickets don't require time slots
+  const baseRequiredFields = !contractId || !branchId || !zoneId || !locationDescription || 
+                             !ticketTypeId || !ticketDate || !assignToTeamLeaderId || 
+                             !assignToTechnicianId || !mainServiceId;
+  
+  // Location map is optional (can be null)
+  // Time slots are required only for non-Emergency tickets
+  const timeRequired = !isEmergency && (!ticketTimeFrom || !ticketTimeTo);
+  
+  if (baseRequiredFields || timeRequired) {
     throw new AppError('Missing required fields', 400, 'VALIDATION_ERROR');
   }
 
@@ -690,13 +707,7 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     throw new AppError('Assigned user cannot be an Admin or Team Leader', 400, 'VALIDATION_ERROR');
   }
 
-  // Verify ticket type exists
-  const ticketType = await Lookup.findOne({
-    where: { id: ticketTypeId, category: LookupCategory.TICKET_TYPE, isActive: true },
-  });
-  if (!ticketType) {
-    throw new AppError('Invalid ticket type', 400, 'VALIDATION_ERROR');
-  }
+  // Ticket type already verified above
 
   // Get default status (usually "Pending")
   const defaultStatus = await Lookup.findOne({
@@ -724,13 +735,13 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     contractId,
     branchId,
     zoneId,
-    locationMap: locationMap || '',
+    locationMap: locationMap || null, // Optional field
     locationDescription,
     ticketTypeId,
     ticketStatusId: defaultStatus.id,
     ticketDate,
-    ticketTimeFrom,
-    ticketTimeTo,
+    ticketTimeFrom: isEmergency ? null : ticketTimeFrom, // Emergency tickets don't have time slots
+    ticketTimeTo: isEmergency ? null : ticketTimeTo, // Emergency tickets don't have time slots
     assignToTeamLeaderId,
     assignToTechnicianId,
     ticketDescription: ticketDescription || null,
