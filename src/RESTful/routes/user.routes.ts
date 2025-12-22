@@ -18,8 +18,9 @@ router.get('/profile', authenticateToken, userController.getProfile);
 router.put('/profile', authenticateToken, userController.upload.single('profileImage'), userController.updateProfile);
 router.get('/', authenticateToken, userController.getAllUsers);
 router.get('/students', authenticateToken, userController.getStudents);
-router.get('/:id', authenticateToken, userController.getUserById);
+// Put specific routes before parameterized routes to avoid route conflicts
 router.put('/:id', authenticateToken, userController.updateUser);
+router.get('/:id', authenticateToken, userController.getUserById);
 
 // Course-specific routes
 router.get(

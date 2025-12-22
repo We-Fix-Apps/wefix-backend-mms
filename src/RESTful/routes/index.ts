@@ -9,7 +9,7 @@ import userRoutes from './user.routes';
 const router = express.Router();
 
 // API version 1 routes
-router.use('/users', userRoutes);
+router.use('/user', userRoutes);
 router.use('/logs', logRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/company-data', companyDataRoutes);

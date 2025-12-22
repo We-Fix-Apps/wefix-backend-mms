@@ -36,10 +36,23 @@ export const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit for profile images
   },
   fileFilter: (req, file, cb) => {
-    // Only accept image files
-    if (file.mimetype.startsWith('image/')) {
+    // Accept image files - check both mimetype and file extension
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    
+    // Check if mimetype is valid or if file extension is valid (in case mimetype is not set correctly)
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else if (allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
+      // Log for debugging
+      console.log('File rejected:', {
+        mimetype: file.mimetype,
+        originalname: file.originalname,
+        extension: fileExtension
+      });
       cb(new Error('Only image files are allowed'));
     }
   },
@@ -383,6 +396,7 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
  * File: profileImage (multipart/form-data)
  */
 export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  console.log('updateProfile called', req.method, req.path, req.body);
   if (!req.user) {
     throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
   }
