@@ -64,10 +64,9 @@ export class Server {
             !req.path.startsWith('/uploads') && 
             req.path !== '/health' &&
             req.path !== '/api/v1/health') {
+          // Log only requests with authorization header
           const authHeader = req.headers.authorization;
-          if (!authHeader) {
-            console.log(`${req.method} ${req.path} - No authorization header found`);
-          } else {
+          if (authHeader) {
             console.log(`${req.method} ${req.path}`);
           }
         }
@@ -165,7 +164,6 @@ export class Server {
       // Prevent infinite loop: if request comes from backend-oms proxy, don't proxy again
       const proxyFrom = req.headers['x-proxy-from'] || req.headers['X-Proxy-From'];
       if (proxyFrom === 'backend-oms') {
-        console.log(`[PROXY] Request from backend-oms detected, skipping proxy to prevent loop`);
         return next(); // Pass to 404 handler
       }
       
@@ -178,7 +176,6 @@ export class Server {
         // req.path is /Images/xx.png (route /WeFixFiles already matched)
         // We need to add /WeFixFiles back to the path for the proxy request
         const omsUrl = `${omsBaseUrl}/WeFixFiles${req.path}`;
-        console.log(`[PROXY] Requesting file from backend-oms: ${omsUrl}`);
         
         // Use native https/http modules to proxy
         const urlModule = require('url');
@@ -197,8 +194,6 @@ export class Server {
         };
         
         const proxyReq = client.request(options, (proxyRes: any) => {
-          console.log(`[PROXY] Response from backend-oms: ${proxyRes.statusCode} for ${omsUrl}`);
-          
           // Set CORS headers
           res.setHeader('Access-Control-Allow-Origin', '*');
           
@@ -222,7 +217,6 @@ export class Server {
         });
         
         proxyReq.on('error', (err: any) => {
-          console.error(`[PROXY] Error proxying from backend-oms (${omsUrl}):`, err.message);
           if (!res.headersSent) {
             res.status(404).send('File not found');
           }
@@ -230,7 +224,6 @@ export class Server {
         
         // Set timeout (reduced to 5 seconds to fail faster)
         proxyReq.setTimeout(5000, () => {
-          console.error(`[PROXY] Timeout proxying from backend-oms: ${omsUrl}`);
           proxyReq.destroy();
           if (!res.headersSent) {
             res.status(404).send('File not found');
