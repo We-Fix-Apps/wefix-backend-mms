@@ -640,16 +640,14 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   const isEmergency = ticketType.name.toLowerCase() === 'emergency' || 
                       ticketType.code === 'EMRG';
 
-  // Validation - Emergency tickets don't require time slots
+  // Validation - Emergency tickets now have time slots (current time + 120 minutes)
   const baseRequiredFields = !contractId || !branchId || !zoneId || !locationDescription || 
-                             !ticketTypeId || !ticketDate || !assignToTeamLeaderId || 
-                             !assignToTechnicianId || !mainServiceId;
+                             !ticketTypeId || !ticketDate || !ticketTimeFrom || !ticketTimeTo ||
+                             !assignToTeamLeaderId || !assignToTechnicianId || !mainServiceId;
   
   // Location map is optional (can be null)
-  // Time slots are required only for non-Emergency tickets
-  const timeRequired = !isEmergency && (!ticketTimeFrom || !ticketTimeTo);
   
-  if (baseRequiredFields || timeRequired) {
+  if (baseRequiredFields) {
     throw new AppError('Missing required fields', 400, 'VALIDATION_ERROR');
   }
 
@@ -740,8 +738,8 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     ticketTypeId,
     ticketStatusId: defaultStatus.id,
     ticketDate,
-    ticketTimeFrom: isEmergency ? null : ticketTimeFrom, // Emergency tickets don't have time slots
-    ticketTimeTo: isEmergency ? null : ticketTimeTo, // Emergency tickets don't have time slots
+    ticketTimeFrom, // Emergency tickets now have time slots (current time + 120 minutes)
+    ticketTimeTo, // Emergency tickets now have time slots (current time + 120 minutes)
     assignToTeamLeaderId,
     assignToTechnicianId,
     ticketDescription: ticketDescription || null,
