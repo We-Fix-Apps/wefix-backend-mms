@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import express, { Application } from 'express'
 import fs from 'fs';
 import https from 'https';
+import http from 'http';
 import path from 'path';
 import createMiddleware from 'redoc-express';
 import { Umzug } from 'umzug'
@@ -119,6 +120,7 @@ export class Server {
     // Custom middleware to serve files from /WeFixFiles route
     // This handles file serving with proper error handling for paths like /WeFixFiles/Images/xx.png
     // Matches backend-oms structure for single source of truth
+    // Also proxies from backend-oms if file not found locally
     this.app.use('/WeFixFiles', (req, res, next) => {
       // Extract path after /WeFixFiles (e.g., /WeFixFiles/Images/xx.png -> Images/xx.png)
       const relativePath = req.path.replace(/^\/+/, ''); // Remove leading slashes
@@ -130,6 +132,7 @@ export class Server {
       // Build full path matching the stored structure (e.g., /WeFixFiles/Images/xx.png -> public/WeFixFiles/Images/xx.png)
       const filePath = path.join(process.cwd(), 'public', 'WeFixFiles', relativePath);
       
+      // Check if file exists locally
       if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
         // Set proper headers
         if (filePath.endsWith('.m4a') || filePath.endsWith('.mp3') || filePath.endsWith('.wav')) {
@@ -147,7 +150,60 @@ export class Server {
         return res.sendFile(filePath);
       }
       
-      // File not found, pass to next middleware (404 handler)
+      // File doesn't exist locally, try to proxy from backend-oms
+      // This ensures single source of truth - images uploaded via frontend-oms (backend-oms) 
+      // are accessible from mobile-user (backend-mms)
+      const omsBaseUrl = process.env.OMS_BASE_URL;
+      if (omsBaseUrl) {
+        const omsUrl = `${omsBaseUrl}${req.path}`;
+        
+        // Use native https/http modules to proxy
+        const urlModule = require('url');
+        const parsedUrl = urlModule.parse(omsUrl);
+        const client = parsedUrl.protocol === 'https:' ? https : http;
+        
+        const proxyReq = client.get(omsUrl, (proxyRes: any) => {
+          // Set CORS headers
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          
+          // Copy content type
+          if (proxyRes.headers['content-type']) {
+            res.setHeader('Content-Type', proxyRes.headers['content-type']);
+          }
+          
+          // Copy status code
+          res.statusCode = proxyRes.statusCode || 200;
+          
+          // If successful, pipe the response
+          if (proxyRes.statusCode === 200) {
+            proxyRes.pipe(res);
+          } else {
+            // If not found in backend-oms either, return 404
+            if (!res.headersSent) {
+              res.status(404).send('File not found');
+            }
+          }
+        });
+        
+        proxyReq.on('error', (err: any) => {
+          console.error('Error proxying from backend-oms:', err);
+          if (!res.headersSent) {
+            res.status(404).send('File not found');
+          }
+        });
+        
+        // Set timeout
+        proxyReq.setTimeout(10000, () => {
+          proxyReq.destroy();
+          if (!res.headersSent) {
+            res.status(504).send('Gateway timeout');
+          }
+        });
+        
+        return; // Don't call next() - we're handling the request
+      }
+      
+      // File not found and no OMS_BASE_URL configured, pass to next middleware (404 handler)
       next();
     });
     
