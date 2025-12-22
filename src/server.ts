@@ -156,6 +156,7 @@ export class Server {
       const omsBaseUrl = process.env.OMS_BASE_URL;
       if (omsBaseUrl) {
         const omsUrl = `${omsBaseUrl}${req.path}`;
+        console.log(`[PROXY] Requesting file from backend-oms: ${omsUrl}`);
         
         // Use native https/http modules to proxy
         const urlModule = require('url');
@@ -163,6 +164,8 @@ export class Server {
         const client = parsedUrl.protocol === 'https:' ? https : http;
         
         const proxyReq = client.get(omsUrl, (proxyRes: any) => {
+          console.log(`[PROXY] Response from backend-oms: ${proxyRes.statusCode} for ${omsUrl}`);
+          
           // Set CORS headers
           res.setHeader('Access-Control-Allow-Origin', '*');
           
@@ -186,7 +189,7 @@ export class Server {
         });
         
         proxyReq.on('error', (err: any) => {
-          console.error('Error proxying from backend-oms:', err);
+          console.error(`[PROXY] Error proxying from backend-oms (${omsUrl}):`, err.message);
           if (!res.headersSent) {
             res.status(404).send('File not found');
           }
@@ -194,6 +197,7 @@ export class Server {
         
         // Set timeout
         proxyReq.setTimeout(10000, () => {
+          console.error(`[PROXY] Timeout proxying from backend-oms: ${omsUrl}`);
           proxyReq.destroy();
           if (!res.headersSent) {
             res.status(504).send('Gateway timeout');
