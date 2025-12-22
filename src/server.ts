@@ -116,10 +116,23 @@ export class Server {
       console.log(`📁 Created uploads directory: ${uploadsDir}`);
     }
     
-    // Also serve files directly from /WeFixFiles route (for compatibility with backend-oms paths)
-    // This allows access to files via /WeFixFiles/Images/filename.ext or /WeFixFiles/Contracts/filename.ext
-    this.app.use('/WeFixFiles', express.static(uploadsDir, {
-      setHeaders: (res, filePath) => {
+    // Custom middleware to serve files from /WeFixFiles route
+    // This handles file serving with proper error handling for paths like /WeFixFiles/Images/xx.png
+    this.app.use('/WeFixFiles', (req, res, next) => {
+      // Extract path after /WeFixFiles (e.g., /WeFixFiles/Images/xx.png -> Images/xx.png or just xx.png)
+      const relativePath = req.path.replace(/^\/+/, ''); // Remove leading slashes
+      
+      if (!relativePath) {
+        return next(); // No path, pass to next middleware
+      }
+      
+      // Extract filename from path (handle both /WeFixFiles/Images/xx.png and /WeFixFiles/xx.png)
+      const filename = relativePath.split('/').pop() || relativePath;
+      
+      // Try to find file in uploadsDir (files are stored directly in public/WeFixFiles/)
+      const filePath = path.join(uploadsDir, filename);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        // Set proper headers
         if (filePath.endsWith('.m4a') || filePath.endsWith('.mp3') || filePath.endsWith('.wav')) {
           res.setHeader('Content-Type', 'audio/mpeg');
         } else if (filePath.endsWith('.mp4') || filePath.endsWith('.mov')) {
@@ -132,18 +145,31 @@ export class Server {
           res.setHeader('Content-Type', 'image/png');
         }
         res.setHeader('Access-Control-Allow-Origin', '*');
-      },
-    }));
+        return res.sendFile(filePath);
+      }
+      
+      // File not found, pass to next middleware (404 handler)
+      next();
+    });
     
     // Serve static files from uploads directory
     // Also serve from old location for backward compatibility with existing files
     const oldUploadsDir = path.join(process.cwd(), 'uploads');
     
-    // Serve from new location (volume mount)
-    this.app.use('/uploads', express.static(uploadsDir, {
-      // Set proper headers for file downloads
-      setHeaders: (res, filePath) => {
-        // Set content type based on file extension
+    // Custom middleware to serve files from /uploads route
+    // This handles file serving with proper error handling
+    this.app.use('/uploads', (req, res, next) => {
+      // Extract filename from path (e.g., /uploads/xx.png -> xx.png)
+      const filename = req.path.replace(/^\/+/, ''); // Remove leading slashes
+      
+      if (!filename) {
+        return next(); // No filename, pass to next middleware
+      }
+      
+      // Try new location first
+      const filePath = path.join(uploadsDir, filename);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        // Set proper headers
         if (filePath.endsWith('.m4a') || filePath.endsWith('.mp3') || filePath.endsWith('.wav')) {
           res.setHeader('Content-Type', 'audio/mpeg');
         } else if (filePath.endsWith('.mp4') || filePath.endsWith('.mov')) {
@@ -155,30 +181,35 @@ export class Server {
         } else if (filePath.endsWith('.png')) {
           res.setHeader('Content-Type', 'image/png');
         }
-        // Allow CORS for file access
         res.setHeader('Access-Control-Allow-Origin', '*');
-      },
-    }));
-    
-    // Also serve from old location for backward compatibility (if file not found in new location)
-    if (fs.existsSync(oldUploadsDir)) {
-      this.app.use('/uploads', express.static(oldUploadsDir, {
-        setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.m4a') || filePath.endsWith('.mp3') || filePath.endsWith('.wav')) {
+        return res.sendFile(filePath);
+      }
+      
+      // Try old location if exists
+      if (fs.existsSync(oldUploadsDir)) {
+        const oldFilePath = path.join(oldUploadsDir, filename);
+        if (fs.existsSync(oldFilePath) && fs.statSync(oldFilePath).isFile()) {
+          // Set proper headers
+          if (oldFilePath.endsWith('.m4a') || oldFilePath.endsWith('.mp3') || oldFilePath.endsWith('.wav')) {
             res.setHeader('Content-Type', 'audio/mpeg');
-          } else if (filePath.endsWith('.mp4') || filePath.endsWith('.mov')) {
+          } else if (oldFilePath.endsWith('.mp4') || oldFilePath.endsWith('.mov')) {
             res.setHeader('Content-Type', 'video/mp4');
-          } else if (filePath.endsWith('.pdf')) {
+          } else if (oldFilePath.endsWith('.pdf')) {
             res.setHeader('Content-Type', 'application/pdf');
-          } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+          } else if (oldFilePath.endsWith('.jpg') || oldFilePath.endsWith('.jpeg')) {
             res.setHeader('Content-Type', 'image/jpeg');
-          } else if (filePath.endsWith('.png')) {
+          } else if (oldFilePath.endsWith('.png')) {
             res.setHeader('Content-Type', 'image/png');
           }
           res.setHeader('Access-Control-Allow-Origin', '*');
-        },
-      }));
-    }
+          return res.sendFile(oldFilePath);
+        }
+      }
+      
+      // File not found, pass to next middleware (404 handler)
+      next();
+    });
+    
     console.log(`📁 Serving uploads from: ${uploadsDir}`);
     
     // Root endpoint
@@ -198,9 +229,12 @@ export class Server {
     
     // 404 handler (must be last, after all routes including static files)
     this.app.use((req, res) => {
+      // Check if this is a file request (uploads or WeFixFiles)
+      const isFileRequest = req.path.startsWith('/uploads/') || req.path.startsWith('/WeFixFiles/');
+      
       res.status(404).json({
         success: false,
-        message: 'Route not found',
+        message: isFileRequest ? 'File not found' : 'Route not found',
         path: req.path,
       });
     });
