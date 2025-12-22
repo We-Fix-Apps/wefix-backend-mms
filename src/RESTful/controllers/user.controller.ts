@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import path from 'path';
+import fs from 'fs';
 
 import { generateRefreshToken, generateToken } from '../../lib';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -9,6 +11,41 @@ interface DecodedToken extends JwtPayload {
 }
 import { AppError, asyncHandler } from '../middleware/error.middleware';
 import UserRepository from '../services/user/user.repository';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Configure multer for profile image uploads
+const profileImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'public', 'WeFixFiles');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+  },
+});
+
+export const upload = multer({
+  storage: profileImageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for profile images
+  },
+  fileFilter: (req, file, cb) => {
+    // Only accept image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
 
 const userRepository = new UserRepository();
 
@@ -337,6 +374,59 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
       firstname: user.fullName || null,
       lastname: user.fullNameEnglish || null,
       profileImage: user.profileImage || null,
+    },
+  });
+});
+
+/**
+ * Update user profile with optional image upload
+ * PUT /api/v1/user/profile
+ * Body: { email?, firstname?, lastname?, mobileNumber?, countryCode?, gender? }
+ * File: profileImage (multipart/form-data)
+ */
+export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
+  }
+
+  const userId = req.user.id.toString();
+  const updateData: any = {};
+
+  // Handle text fields
+  if (req.body.email) updateData.email = req.body.email;
+  if (req.body.firstname) updateData.fullName = req.body.firstname;
+  if (req.body.lastname) updateData.fullNameEnglish = req.body.lastname;
+  if (req.body.mobileNumber) updateData.mobileNumber = req.body.mobileNumber;
+  if (req.body.countryCode) updateData.countryCode = req.body.countryCode;
+  if (req.body.gender) updateData.gender = req.body.gender;
+
+  // Handle file upload (profileImage)
+  if (req.file) {
+    // File was uploaded via multer
+    const filename = req.file.filename;
+    // Store relative path: /uploads/filename.ext
+    updateData.profileImage = `/uploads/${filename}`;
+  } else if (req.body.profileImage) {
+    // Profile image URL/path provided as string (for backward compatibility)
+    updateData.profileImage = req.body.profileImage;
+  }
+
+  // Update user
+  const updatedUser = await userRepository.updateUserById(userId, updateData);
+
+  if (!updatedUser) {
+    throw new AppError('Failed to update profile', 500, 'UPDATE_ERROR');
+  }
+
+  // Format response to match ProfileModel structure expected by mobile app
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully',
+    profile: {
+      email: updatedUser.email || null,
+      firstname: updatedUser.fullName || null,
+      lastname: updatedUser.fullNameEnglish || null,
+      profileImage: updatedUser.profileImage || null,
     },
   });
 });
