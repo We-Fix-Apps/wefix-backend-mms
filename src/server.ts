@@ -59,7 +59,15 @@ export class Server {
     // Request logging in development
     if (process.env.NODE_ENV !== 'production') {
       this.app.use((req, res, next) => {
-        console.log(`${req.method} ${req.path}`);
+        // Skip logging for static file requests
+        if (!req.path.startsWith('/WeFixFiles') && !req.path.startsWith('/uploads')) {
+          const authHeader = req.headers.authorization;
+          if (!authHeader) {
+            console.log(`${req.method} ${req.path} - No authorization header found`);
+          } else {
+            console.log(`${req.method} ${req.path}`);
+          }
+        }
         next();
       });
     }
@@ -155,6 +163,11 @@ export class Server {
       // are accessible from mobile-user (backend-mms)
       const omsBaseUrl = process.env.OMS_BASE_URL;
       if (omsBaseUrl) {
+        // Prevent infinite loop: if request comes from backend-oms proxy, don't proxy again
+        if (req.headers['x-proxy-from'] === 'backend-oms') {
+          return next(); // Pass to 404 handler
+        }
+        
         // req.path is /Images/xx.png (route /WeFixFiles already matched)
         // We need to add /WeFixFiles back to the path for the proxy request
         const omsUrl = `${omsBaseUrl}/WeFixFiles${req.path}`;
@@ -165,7 +178,18 @@ export class Server {
         const parsedUrl = urlModule.parse(omsUrl);
         const client = parsedUrl.protocol === 'https:' ? https : http;
         
-        const proxyReq = client.get(omsUrl, (proxyRes: any) => {
+        // Add custom header to prevent infinite loop
+        const options = {
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+          path: parsedUrl.path,
+          method: 'GET',
+          headers: {
+            'X-Proxy-From': 'backend-mms',
+          },
+        };
+        
+        const proxyReq = client.request(options, (proxyRes: any) => {
           console.log(`[PROXY] Response from backend-oms: ${proxyRes.statusCode} for ${omsUrl}`);
           
           // Set CORS headers
