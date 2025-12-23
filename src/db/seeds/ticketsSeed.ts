@@ -5,7 +5,7 @@ export interface TicketData {
   branchId: number;
   zoneId: number;
   locationMap: string;
-  locationDescription: string;
+  ticketTitle: string;
   ticketTypeId: number;
   ticketStatusId: number;
   ticketDate: string;
@@ -145,7 +145,7 @@ const generateTickets = (): TicketData[] => {
       branchId: companyIndex,
       zoneId: (i % 5) + 1, // Cycle through zones 1-5
       locationMap: getRandomLocation(),
-      locationDescription: getRandomLocationDescription(),
+      ticketTitle: getRandomLocationDescription(),
       ticketTypeId: ticketType,
       ticketStatusId: ticketStatus,
       ticketDate: getRandomDate(),

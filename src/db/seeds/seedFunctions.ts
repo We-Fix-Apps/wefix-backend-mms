@@ -1143,7 +1143,7 @@ export const seedTickets = async (force: boolean = false): Promise<void> => {
           branchId: branch.id,
           zoneId: zone.id,
           locationMap: ticketData.locationMap,
-          locationDescription: ticketData.locationDescription,
+          ticketTitle: ticketData.ticketTitle,
           ticketTypeId: ticketType.id,
           ticketStatusId: ticketStatus.id,
           ticketDate: ticketData.ticketDate,
