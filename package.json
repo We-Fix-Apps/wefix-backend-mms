@@ -18,6 +18,8 @@
     "migrate:status": "tsc && node dist/migrator.js status",
     "migrate:status:docker": "node dist/migrator.js status",
     "migrate:clean": "rm -f src/db/migrations/*.ts dist/db/migrations/*.js",
+    "seed": "tsc && node dist/db/seeds/runAllSeeds.js",
+    "seed:force": "tsc && node dist/db/seeds/runAllSeeds.js --force",
     "pretest": "eslint --ext .ts . --fix --ignore-path .gitignore .",
     "start": "tsc && node dist/server.js",
     "test": "cp -n default.env .env; jest",
