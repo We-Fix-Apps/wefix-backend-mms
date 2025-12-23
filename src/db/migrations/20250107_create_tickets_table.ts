@@ -79,8 +79,8 @@ export const up = async (queryInterface: QueryInterface) => {
       type: DataTypes.INTEGER,
     },
     ticket_description: {
-      allowNull: false,
-      type: DataTypes.STRING(255),
+      allowNull: true,
+      type: DataTypes.STRING(2000),
     },
     having_female_engineer: {
       allowNull: false,

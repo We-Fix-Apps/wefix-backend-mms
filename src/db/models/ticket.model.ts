@@ -149,7 +149,7 @@ export class Ticket extends Model {
     allowNull: true,
     type: DataTypes.STRING(2000),
   })
-  public ticketDescription: string;
+  public ticketDescription: string | null;
 
   @Column({
     allowNull: false,
