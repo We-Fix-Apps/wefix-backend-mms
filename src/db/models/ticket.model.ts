@@ -278,4 +278,3 @@ export class Ticket extends Model {
   })
   public source: string;
 }
-

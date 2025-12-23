@@ -190,4 +190,3 @@ if (require.main === module) {
     });
   }
 }
-

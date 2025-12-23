@@ -1039,4 +1039,3 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
     data: formatTicket(updatedTicket!),
   });
 });
-

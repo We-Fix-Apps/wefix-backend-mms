@@ -1520,4 +1520,3 @@ export const seedNewStates = async (): Promise<void> => {
     throw error;
   }
 };
-
