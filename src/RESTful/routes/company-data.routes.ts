@@ -8,6 +8,7 @@ const router = express.Router();
 // Protected routes - require authentication
 router.get('/contracts', authenticateToken, companyDataController.getCompanyContracts);
 router.get('/branches', authenticateToken, companyDataController.getCompanyBranches);
+router.post('/branches', authenticateToken, companyDataController.createCompanyBranch);
 router.get('/zones', authenticateToken, companyDataController.getCompanyZones);
 router.get('/main-services', authenticateToken, companyDataController.getMainServices);
 router.get('/sub-services', authenticateToken, companyDataController.getSubServices);

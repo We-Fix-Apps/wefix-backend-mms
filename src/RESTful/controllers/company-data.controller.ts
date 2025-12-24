@@ -147,6 +147,93 @@ export const getCompanyBranches = asyncHandler(async (req: AuthRequest, res: Res
 });
 
 /**
+ * Create a new branch for the logged-in company admin's company
+ * Only Company Admin (roleId 18) or Super User (roleId 26) can create branches
+ */
+export const createCompanyBranch = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const {user} = req;
+
+  if (!user) {
+    throw new AppError('User not authenticated', 401, 'UNAUTHORIZED');
+  }
+
+  const {companyId, userRoleId} = user;
+
+  if (!companyId) {
+    throw new AppError('User is not associated with a company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Only Company Admin (18) or Super User (26) can create branches
+  if (userRoleId !== 18 && userRoleId !== 26) {
+    throw new AppError('Only company admin or super user can create branches', 403, 'FORBIDDEN');
+  }
+
+  const {
+    name,
+    nameAr,
+    phone,
+    city,
+    address,
+    latitude,
+    longitude,
+  } = req.body;
+
+  // Validate required fields
+  if (!name || name.trim() === '') {
+    throw new AppError('Branch name is required', 400, 'VALIDATION_ERROR');
+  }
+
+  // Build location URL if coordinates are provided
+  let locationUrl: string | null = null;
+  if (latitude && longitude && latitude.toString().trim() !== '' && longitude.toString().trim() !== '') {
+    const lat = parseFloat(latitude.toString());
+    const lng = parseFloat(longitude.toString());
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      locationUrl = `https://maps.google.com/?q=${lat},${lng}`;
+    }
+  }
+  
+  // If no coordinates, use address or city as location (fallback)
+  if (!locationUrl && address && address.trim() !== '') {
+    locationUrl = address.trim();
+  } else if (!locationUrl && city && city.trim() !== '') {
+    locationUrl = city.trim();
+  }
+
+  // Use name as branchTitle if provided, otherwise use nameAr or name
+  const branchTitle = name.trim();
+  const branchNameEnglish = name.trim();
+  const branchNameArabic = nameAr && nameAr.trim() !== '' ? nameAr.trim() : null;
+
+  // Create the branch
+  const branch = await Branch.create({
+    branchTitle,
+    branchNameEnglish,
+    branchNameArabic,
+    representativeMobileNumber: phone && phone.trim() !== '' ? phone.trim() : null,
+    location: locationUrl || address || null,
+    companyId,
+    isActive: true,
+    isDeleted: false,
+    createdBy: user.id,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Branch created successfully',
+    data: {
+      id: branch.id,
+      branchTitle: branch.branchTitle,
+      branchNameEnglish: branch.branchNameEnglish,
+      branchNameArabic: branch.branchNameArabic,
+      representativeMobileNumber: branch.representativeMobileNumber,
+      location: branch.location,
+      companyId: branch.companyId,
+    },
+  });
+});
+
+/**
  * Get zones for the logged-in company admin's company branches
  * Optionally filter by branchId if provided as query parameter
  */
