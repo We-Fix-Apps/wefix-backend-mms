@@ -27,15 +27,6 @@ export const BRANCHES_DATA = [
     isActive: true,
     locationMap: 'https://maps.google.com/?q=29.5321,35.0063',
   },
-  {
-    address: 'Al-Madina Al-Munawara Street, Building 44, Zarqa, Jordan',
-    branchNameArabic: 'فرع الزرقاء',
-    branchNameEnglish: 'Zarqa Branch',
-    branchTitle: 'Zarqa Branch',
-    companyId: 1,
-    isActive: false,
-    locationMap: 'https://maps.google.com/?q=32.0728,36.0881',
-  },
 
   // Branches for Company 2
   {
@@ -55,6 +46,15 @@ export const BRANCHES_DATA = [
     companyId: 2,
     isActive: true,
     locationMap: 'https://maps.google.com/?q=32.0394,35.7272',
+  },
+  {
+    address: 'Al-Madina Al-Munawara Street, Building 44, Zarqa, Jordan',
+    branchNameArabic: 'فرع الزرقاء',
+    branchNameEnglish: 'Zarqa Branch',
+    branchTitle: 'Zarqa Branch',
+    companyId: 2,
+    isActive: true,
+    locationMap: 'https://maps.google.com/?q=32.0728,36.0881',
   },
 
   // Branches for Company 3
