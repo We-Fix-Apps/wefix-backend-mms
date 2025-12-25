@@ -61,4 +61,32 @@ export const SALT_BRANCH_ZONES: readonly Omit<ZoneSeedData, 'branchId'>[] = [
   },
 ];
 
+// Zones specifically for Zarqa Branch
+export const ZARQA_BRANCH_ZONES: readonly Omit<ZoneSeedData, 'branchId'>[] = [
+  {
+    zoneTitle: 'Zarqa Zone 1 - City Center',
+    zoneNumber: 'ZARQA-Z001',
+    zoneDescription: 'Zarqa city center and main commercial area',
+    isActive: true,
+  },
+  {
+    zoneTitle: 'Zarqa Zone 2 - Residential Areas',
+    zoneNumber: 'ZARQA-Z002',
+    zoneDescription: 'Residential neighborhoods in Zarqa',
+    isActive: true,
+  },
+  {
+    zoneTitle: 'Zarqa Zone 3 - Industrial Zone',
+    zoneNumber: 'ZARQA-Z003',
+    zoneDescription: 'Industrial and manufacturing areas in Zarqa',
+    isActive: true,
+  },
+  {
+    zoneTitle: 'Zarqa Zone 4 - University Area',
+    zoneNumber: 'ZARQA-Z004',
+    zoneDescription: 'University campus and surrounding areas in Zarqa',
+    isActive: true,
+  },
+];
+
 

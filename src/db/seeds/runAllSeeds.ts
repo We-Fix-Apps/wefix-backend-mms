@@ -14,6 +14,7 @@ import {
   seedZones,
 } from './seedFunctions';
 import { addSaltBranchZones } from './addSaltBranchZones';
+import { addZarqaBranchZones } from './addZarqaBranchZones';
 
 import { orm } from '../orm';
 
@@ -156,6 +157,9 @@ export const runSeed = async (seedName: string, force: boolean = false): Promise
         break;
       case 'saltBranchZones':
         await addSaltBranchZones();
+        break;
+      case 'zarqaBranchZones':
+        await addZarqaBranchZones();
         break;
       case 'maintenanceServices':
         await seedMaintenanceServices(force);
