@@ -87,47 +87,62 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
     });
   }
 
-  const user = await userRepository.authenticateUser(email, password, deviceId, fcmToken);
+  try {
+    const user = await userRepository.authenticateUser(email, password, deviceId, fcmToken);
 
-  if (!user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid login credentials',
-      user: null,
-      token: null,
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid login credentials',
+        user: null,
+        token: null,
+      });
+    }
+
+    const accessToken = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Calculate token expiration time from JWT
+    const decodedToken = jwt.decode(accessToken) as { exp?: number; iat?: number } | null;
+    const tokenExpiresAt = decodedToken?.exp 
+      ? new Date(decodedToken.exp * 1000) 
+      : new Date(Date.now() + 3600 * 1000); // Default to 1 hour if can't decode
+
+    // Calculate expiresIn in seconds from the actual token expiration
+    const expiresIn = decodedToken?.exp && decodedToken?.iat
+      ? decodedToken.exp - decodedToken.iat
+      : decodedToken?.exp
+      ? Math.max(0, decodedToken.exp - Math.floor(Date.now() / 1000))
+      : 3600; // Default to 1 hour if can't decode
+
+    // Save accessToken to database with prefix "mobile-access-token:"
+    await userRepository.updateUserToken(user.id.toString(), `mobile-access-token:${accessToken}`, tokenExpiresAt);
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      user,
+      token: {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer',
+        expiresIn,
+      },
     });
+  } catch (error: any) {
+    // Check if it's an inactive account error
+    if (error.isInactive && error.message) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+        user: null,
+        token: null,
+      });
+    }
+    
+    // For other authentication errors, throw AppError to be handled by asyncHandler
+    throw new AppError(error.message || 'Invalid login credentials', 401, 'AUTHENTICATION_ERROR');
   }
-
-  const accessToken = generateToken(user);
-  const refreshToken = generateRefreshToken(user);
-
-  // Calculate token expiration time from JWT
-  const decodedToken = jwt.decode(accessToken) as { exp?: number; iat?: number } | null;
-  const tokenExpiresAt = decodedToken?.exp 
-    ? new Date(decodedToken.exp * 1000) 
-    : new Date(Date.now() + 3600 * 1000); // Default to 1 hour if can't decode
-
-  // Calculate expiresIn in seconds from the actual token expiration
-  const expiresIn = decodedToken?.exp && decodedToken?.iat
-    ? decodedToken.exp - decodedToken.iat
-    : decodedToken?.exp
-    ? Math.max(0, decodedToken.exp - Math.floor(Date.now() / 1000))
-    : 3600; // Default to 1 hour if can't decode
-
-  // Save accessToken to database with prefix "mobile-access-token:"
-  await userRepository.updateUserToken(user.id.toString(), `mobile-access-token:${accessToken}`, tokenExpiresAt);
-
-  res.status(200).json({
-    success: true,
-    message: 'Login successful',
-    user,
-    token: {
-      accessToken,
-      refreshToken,
-      tokenType: 'Bearer',
-      expiresIn,
-    },
-  });
 });
 
 export const refreshAccessToken = asyncHandler(async (req: AuthRequest, res: Response) => {

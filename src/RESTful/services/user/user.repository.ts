@@ -54,7 +54,10 @@ class UserRepository {
 
       // Check if user is active
       if (!user.isActive) {
-        throw new Error('Your account is inactive. Please contact your administrator to activate your account.\nحسابك غير نشط. يرجى التواصل مع المسؤول لتفعيل حسابك.');
+        const inactiveError: any = new Error('ACCOUNT_INACTIVE');
+        inactiveError.isInactive = true;
+        inactiveError.message = 'Your account is inactive. Please contact your administrator to activate your account.\nحسابك غير نشط. يرجى التواصل مع المسؤول لتفعيل حسابك.';
+        throw inactiveError;
       }
 
       const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -66,7 +69,11 @@ class UserRepository {
       await user.update({ fcmToken, deviceId });
 
       return user as UserOrm;
-    } catch (error) {
+    } catch (error: any) {
+      // If it's an inactive account error, re-throw it as is
+      if (error.isInactive) {
+        throw error;
+      }
       throw new Error(`Authentication failed: ${error.message}`);
     }
   }
