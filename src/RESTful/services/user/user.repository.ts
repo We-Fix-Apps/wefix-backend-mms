@@ -52,6 +52,11 @@ class UserRepository {
         return null;
       }
 
+      // Check if user is active
+      if (!user.isActive) {
+        throw new Error('Your account is inactive. Please contact your administrator to activate your account.\nحسابك غير نشط. يرجى التواصل مع المسؤول لتفعيل حسابك.');
+      }
+
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return null;
