@@ -131,7 +131,7 @@ export class Server {
     // This handles file serving with proper error handling for paths like /WeFixFiles/Images/xx.png
     // Matches backend-oms structure for single source of truth
     // Also proxies from backend-oms if file not found locally
-    this.app.use('/WeFixFiles', (req, res, next) => {
+    this.app.use('/WeFixFiles', async (req, res, next) => {
       // Extract path after /WeFixFiles (e.g., /WeFixFiles/Images/xx.png -> Images/xx.png)
       const relativePath = req.path.replace(/^\/+/, ''); // Remove leading slashes
       
@@ -187,84 +187,79 @@ export class Server {
         return res.sendFile(filePath);
       }
       
-      // File doesn't exist locally, check if request comes from backend-oms proxy
-      // Prevent infinite loop: if request comes from backend-oms proxy, don't proxy again
+      // File doesn't exist locally, check if request comes from another backend proxy
+      // Prevent infinite loop: if request comes from another backend proxy, don't proxy again
       const proxyFrom = req.headers['x-proxy-from'] || req.headers['X-Proxy-From'];
-      if (proxyFrom === 'backend-oms') {
+      if (proxyFrom === 'backend-oms' || proxyFrom === 'backend-tmms') {
         return next(); // Pass to 404 handler
       }
       
-      // File doesn't exist locally and not from proxy, try to proxy from backend-oms
-      // This ensures single source of truth - images uploaded via frontend-oms (backend-oms) 
-      // are accessible from mobile-user (backend-mms)
+      // File doesn't exist locally and not from proxy, try to proxy from other backends
+      // Try backend-oms first, then backend-tmms if not found
+      // This ensures files uploaded via other backends are accessible from backend-mms
+      const tryProxyFromBackend = async (baseUrl: string, backendName: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+          const proxyUrl = `${baseUrl}/WeFixFiles${req.path}`;
+          const urlModule = require('url');
+          const parsedUrl = urlModule.parse(proxyUrl);
+          const client = parsedUrl.protocol === 'https:' ? https : http;
+          
+          const options = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            path: parsedUrl.path,
+            method: 'GET',
+            headers: {
+              'X-Proxy-From': 'backend-mms',
+            },
+          };
+          
+          const proxyReq = client.request(options, (proxyRes: any) => {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            if (proxyRes.headers['content-type']) {
+              res.setHeader('Content-Type', proxyRes.headers['content-type']);
+            }
+            res.statusCode = proxyRes.statusCode || 200;
+            
+            if (proxyRes.statusCode === 200) {
+              proxyRes.pipe(res);
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          });
+          
+          proxyReq.on('error', () => resolve(false));
+          proxyReq.setTimeout(5000, () => {
+            proxyReq.destroy();
+            resolve(false);
+          });
+          proxyReq.end();
+        });
+      };
+      
+      // Try backend-oms first
       const omsBaseUrl = process.env.OMS_BASE_URL;
       if (omsBaseUrl) {
-        
-        // req.path is /Images/xx.png (route /WeFixFiles already matched)
-        // We need to add /WeFixFiles back to the path for the proxy request
-        const omsUrl = `${omsBaseUrl}/WeFixFiles${req.path}`;
-        
-        // Use native https/http modules to proxy
-        const urlModule = require('url');
-        const parsedUrl = urlModule.parse(omsUrl);
-        const client = parsedUrl.protocol === 'https:' ? https : http;
-        
-        // Add custom header to prevent infinite loop
-        const options = {
-          hostname: parsedUrl.hostname,
-          port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-          path: parsedUrl.path,
-          method: 'GET',
-          headers: {
-            'X-Proxy-From': 'backend-mms',
-          },
-        };
-        
-        const proxyReq = client.request(options, (proxyRes: any) => {
-          // Set CORS headers
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          
-          // Copy content type
-          if (proxyRes.headers['content-type']) {
-            res.setHeader('Content-Type', proxyRes.headers['content-type']);
-          }
-          
-          // Copy status code
-          res.statusCode = proxyRes.statusCode || 200;
-          
-          // If successful, pipe the response
-          if (proxyRes.statusCode === 200) {
-            proxyRes.pipe(res);
-          } else {
-            // If not found in backend-oms either, return 404
-            if (!res.headersSent) {
-              res.status(404).send('File not found');
-            }
-          }
-        });
-        
-        proxyReq.on('error', (err: any) => {
-          if (!res.headersSent) {
-            res.status(404).send('File not found');
-          }
-        });
-        
-        // Set timeout (reduced to 5 seconds to fail faster)
-        proxyReq.setTimeout(5000, () => {
-          proxyReq.destroy();
-          if (!res.headersSent) {
-            res.status(404).send('File not found');
-          }
-        });
-        
-        // End the request (required when using client.request())
-        proxyReq.end();
-        
-        return; // Don't call next() - we're handling the request
+        const found = await tryProxyFromBackend(omsBaseUrl, 'backend-oms');
+        if (found) {
+          return; // File found and proxied from backend-oms
+        }
       }
       
-      // File not found and no OMS_BASE_URL configured, pass to next middleware (404 handler)
-      next();
+      // If not found in backend-oms, try backend-tmms
+      const tmmsBaseUrl = process.env.TMMS_BASE_URL;
+      if (tmmsBaseUrl) {
+        const found = await tryProxyFromBackend(tmmsBaseUrl, 'backend-tmms');
+        if (found) {
+          return; // File found and proxied from backend-tmms
+        }
+      }
+      
+      // File not found in any backend, return 404
+      if (!res.headersSent) {
+        res.status(404).send('File not found');
+      }
     });
     
     // Serve static files from uploads directory
