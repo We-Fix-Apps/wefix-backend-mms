@@ -450,32 +450,84 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
       entityId: ticketId,
       entityType: { [Op.in]: ['ticket', 'user'] }, // Support both 'ticket' (new) and 'user' (old) entity_type
     },
-    attributes: ['id', 'filename', 'originalFilename', 'path', 'filePath', 'size', 'fileSizeMB', 'category', 'createdAt'],
+    attributes: ['id', 'filename', 'originalFilename', 'path', 'filePath', 'size', 'fileSizeMB', 'category', 'createdAt', 'uploadedBy', 'createdBy'],
     order: [['createdAt', 'DESC']],
   });
+
+  // Separate files into regular attachments and technician attachments
+  // Technician attachments are files uploaded by the assigned technician
+  const technicianId = ticket.assignToTechnicianId;
+  const regularAttachments = ticketFiles
+    .filter(file => file.uploadedBy !== technicianId && file.createdBy !== technicianId)
+    .map(file => {
+      let filePath = file.filePath ?? file.path ?? '';
+      if (!filePath.includes(`/tickets/${ticket.id}/`)) {
+        const fileName = file.filename || filePath.split('/').pop() || '';
+        filePath = `/WeFixFiles/tickets/${ticket.id}/${fileName}`;
+      }
+      return {
+        id: file.id,
+        fileName: file.originalFilename ?? file.filename ?? '',
+        filePath: filePath,
+        fileSize: file.size ?? 0,
+        category: file.category ?? 'other',
+        createdAt: file.createdAt,
+      };
+    });
+  
+  const technicianAttachments = ticketFiles
+    .filter(file => (file.uploadedBy === technicianId || file.createdBy === technicianId) &&
+                    !(file.filename?.toLowerCase().includes('signature') || 
+                      file.originalFilename?.toLowerCase().includes('signature')))
+    .map(file => {
+      let filePath = file.filePath ?? file.path ?? '';
+      if (!filePath.includes(`/tickets/${ticket.id}/`)) {
+        const fileName = file.filename || filePath.split('/').pop() || '';
+        filePath = `/WeFixFiles/tickets/${ticket.id}/${fileName}`;
+      }
+      return {
+        id: file.id,
+        fileName: file.originalFilename ?? file.filename ?? '',
+        filePath: filePath,
+        fileSize: file.size ?? 0,
+        category: file.category ?? 'other',
+        createdAt: file.createdAt,
+      };
+    });
+
+  // Find signature file
+  const signatureFile = ticketFiles.find(file => 
+    (file.uploadedBy === technicianId || file.createdBy === technicianId) &&
+    (file.filename?.toLowerCase().includes('signature') || 
+     file.originalFilename?.toLowerCase().includes('signature'))
+  );
 
   const ticketData = formatTicket(ticket);
   ticketData.tools = toolsWithNames;
   ticketData.files = ticketFiles.map(file => {
-    // Use the path from database (should be /WeFixFiles/tickets/{ticketId}/filename)
-    // If path is not in correct format, construct it
     let filePath = file.filePath ?? file.path ?? '';
-    
-    // If path doesn't include /tickets/{ticketId}/, construct it
     if (!filePath.includes(`/tickets/${ticket.id}/`)) {
       const fileName = file.filename || filePath.split('/').pop() || '';
       filePath = `/WeFixFiles/tickets/${ticket.id}/${fileName}`;
     }
-    
     return {
       id: file.id,
       fileName: file.originalFilename ?? file.filename ?? '',
-      filePath: filePath, // Use public path format
+      filePath: filePath,
       fileSize: file.size ?? 0,
       category: file.category ?? 'other',
       createdAt: file.createdAt,
     };
   });
+  ticketData.technicianAttachments = technicianAttachments;
+  ticketData.signature = signatureFile ? (() => {
+    let filePath = signatureFile.filePath ?? signatureFile.path ?? '';
+    if (!filePath.includes(`/tickets/${ticket.id}/`)) {
+      const fileName = signatureFile.filename || filePath.split('/').pop() || '';
+      filePath = `/WeFixFiles/tickets/${ticket.id}/${fileName}`;
+    }
+    return filePath;
+  })() : null;
 
   res.status(200).json({
     success: true,
