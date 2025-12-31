@@ -115,8 +115,8 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
       ? Math.max(0, decodedToken.exp - Math.floor(Date.now() / 1000))
       : 3600; // Default to 1 hour if can't decode
 
-    // Save accessToken to database with prefix "mobile-access-token:"
-    await userRepository.updateUserToken(user.id.toString(), `mobile-access-token:${accessToken}`, tokenExpiresAt);
+    // Save accessToken to database with prefix "mobile-access-token-mms:"
+    await userRepository.updateUserToken(user.id.toString(), `mobile-access-token-mms:${accessToken}`, tokenExpiresAt);
 
     res.status(200).json({
       success: true,
@@ -477,18 +477,18 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   const clientType = req.headers['x-client-type'] as string; // 'mobile' or 'web'
 
   // Logic:
-  // - Mobile can only clear tokens that start with "mobile-access-token:"
-  // - Frontend/web can only clear tokens that do NOT start with "mobile-access-token:"
+  // - Mobile can only clear tokens that start with "mobile-access-token-mms:"
+  // - Frontend/web can only clear tokens that do NOT start with "mobile-access-token-mms:"
   if (user.token) {
-    const isMobileToken = user.token.startsWith('mobile-access-token:');
+    const isMobileToken = user.token.startsWith('mobile-access-token-mms:');
     
     let shouldClear = false;
     
     if (clientType === 'mobile') {
-      // Mobile client: only clear if token starts with "mobile-access-token:"
+      // Mobile client: only clear if token starts with "mobile-access-token-mms:"
       shouldClear = isMobileToken;
     } else if (clientType === 'web') {
-      // Frontend/web client: only clear if token does NOT start with "mobile-access-token:"
+      // Frontend/web client: only clear if token does NOT start with "mobile-access-token-mms:"
       shouldClear = !isMobileToken;
     } else {
       // No client type header provided - for backward compatibility, clear any token
