@@ -60,8 +60,8 @@ export class User extends Model {
 
   @Column({
     allowNull: false,
-    set: toLowerCase('deviceId'),
-    type: DataTypes.STRING(128),
+    comment: 'Device ID with metadata stored as JSON string (model, brand, manufacturer, etc.)',
+    type: DataTypes.TEXT,
     unique: false,
   })
   public deviceId: string
