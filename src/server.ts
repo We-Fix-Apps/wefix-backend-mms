@@ -45,9 +45,41 @@ export class Server {
     }
   }
 
+  private getAllowedOrigins(): string[] {
+    const origins = process.env.CORS_ORIGINS?.split(',').map(origin => origin.trim()).filter(Boolean) || [];
+    return [...new Set(origins)];
+  }
+
   private setupMiddleware() {
-    // Enable CORS
-    this.app.use(cors());
+    // Get allowed origins from .env
+    const allowedOrigins = this.getAllowedOrigins();
+    
+    // Enable CORS with x-client-type header support and origin validation
+    this.app.use(cors({
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-client-type'],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        
+        // Normalize origin (remove trailing slash)
+        const normalizedOrigin = origin.replace(/\/$/, '');
+        
+        // Allow ngrok origins (any ngrok.app or ngrok.io domain)
+        const isNgrok = normalizedOrigin.includes('ngrok.app') || normalizedOrigin.includes('ngrok.io');
+        
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes(normalizedOrigin) || isNgrok) {
+          callback(null, true);
+        } else {
+          console.warn(`⚠️  CORS blocked origin: ${origin}`);
+          callback(new Error(`Not allowed by CORS: ${origin}`));
+        }
+      },
+    }));
     
     // Body parser middleware
     this.app.use(bodyParser.json());
