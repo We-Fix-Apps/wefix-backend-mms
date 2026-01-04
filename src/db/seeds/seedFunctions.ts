@@ -54,8 +54,14 @@ export const seedLookups = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      // Temporarily disable foreign key checks
+      await Lookup.sequelize?.query(`SET session_replication_role = 'replica';`);
+      
       await Lookup.destroy({ where: {}, force: true });
       console.log('   Cleared existing lookups.');
+      
+      // Re-enable foreign key checks
+      await Lookup.sequelize?.query(`SET session_replication_role = 'origin';`);
     }
 
     let createdCount = 0;
@@ -223,7 +229,9 @@ export const seedUsers = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      await User.sequelize?.query(`SET session_replication_role = 'replica';`);
       await User.destroy({ where: {}, force: true });
+      await User.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing users.');
     }
 
@@ -512,7 +520,9 @@ export const seedCompanies = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      await Company.sequelize?.query(`SET session_replication_role = 'replica';`);
       await Company.destroy({ where: {}, force: true });
+      await Company.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing companies.');
     }
 
@@ -729,7 +739,9 @@ export const seedContracts = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      await Contract.sequelize?.query(`SET session_replication_role = 'replica';`);
       await Contract.destroy({ where: {}, force: true });
+      await Contract.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing contracts.');
     }
 
@@ -845,7 +857,9 @@ export const seedBranches = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      await Branch.sequelize?.query(`SET session_replication_role = 'replica';`);
       await Branch.destroy({ where: {}, force: true });
+      await Branch.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing branches.');
     }
 
@@ -1063,7 +1077,9 @@ export const seedZones = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      await Zone.sequelize?.query(`SET session_replication_role = 'replica';`);
       await Zone.destroy({ where: {}, force: true });
+      await Zone.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing zones.');
     }
 
@@ -1158,7 +1174,9 @@ export const seedMaintenanceServices = async (force: boolean = false): Promise<v
     }
 
     if (force) {
+      await MaintenanceService.sequelize?.query(`SET session_replication_role = 'replica';`);
       await MaintenanceService.destroy({ where: {}, force: true });
+      await MaintenanceService.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing maintenance services.');
     }
 
@@ -1248,7 +1266,9 @@ export const seedTickets = async (force: boolean = false): Promise<void> => {
     }
 
     if (force) {
+      await Ticket.sequelize?.query(`SET session_replication_role = 'replica';`);
       await Ticket.destroy({ where: {}, force: true });
+      await Ticket.sequelize?.query(`SET session_replication_role = 'origin';`);
       console.log('   Cleared existing tickets.');
     }
 
@@ -1336,7 +1356,13 @@ export const seedAdditionalLookups = async (force: boolean = false): Promise<voi
 
     if (existingBusinessModels === 0 || force) {
       if (force) {
+        // Temporarily disable foreign key checks
+        await Lookup.sequelize?.query(`SET session_replication_role = 'replica';`);
+        
         await Lookup.destroy({ where: { category: LookupCategory.BUSINESS_MODEL }, force: true });
+        
+        // Re-enable foreign key checks
+        await Lookup.sequelize?.query(`SET session_replication_role = 'origin';`);
       }
       let createdCount = 0;
       let skippedCount = 0;
@@ -1369,7 +1395,13 @@ export const seedAdditionalLookups = async (force: boolean = false): Promise<voi
 
     if (existingManagedBy === 0 || force) {
       if (force) {
+        // Temporarily disable foreign key checks
+        await Lookup.sequelize?.query(`SET session_replication_role = 'replica';`);
+        
         await Lookup.destroy({ where: { category: LookupCategory.MANAGED_BY }, force: true });
+        
+        // Re-enable foreign key checks
+        await Lookup.sequelize?.query(`SET session_replication_role = 'origin';`);
       }
       let createdCount = 0;
       let skippedCount = 0;
@@ -1410,7 +1442,9 @@ export const seedAdditionalLookups = async (force: boolean = false): Promise<voi
 
     if (existingMainServices === 0 || force) {
       if (force) {
+        await Lookup.sequelize?.query(`SET session_replication_role = 'replica';`);
         await Lookup.destroy({ where: { category: LookupCategory.MAIN_SERVICE }, force: true });
+        await Lookup.sequelize?.query(`SET session_replication_role = 'origin';`);
       }
       let createdCount = 0;
       let skippedCount = 0;
@@ -1443,7 +1477,9 @@ export const seedAdditionalLookups = async (force: boolean = false): Promise<voi
 
     if (existingSubServices === 0 || force) {
       if (force) {
+        await Lookup.sequelize?.query(`SET session_replication_role = 'replica';`);
         await Lookup.destroy({ where: { category: LookupCategory.SUB_SERVICE }, force: true });
+        await Lookup.sequelize?.query(`SET session_replication_role = 'origin';`);
       }
       let createdCount = 0;
       let skippedCount = 0;
