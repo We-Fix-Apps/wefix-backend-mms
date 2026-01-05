@@ -4,7 +4,7 @@ import { QueryTypes } from 'sequelize';
 import { BRANCHES_DATA } from './branchesSeed';
 import { COMPANIES_DATA } from './companiesSeed';
 import { CONTRACTS_DATA } from './contractsSeed';
-import { LOOKUP_DATA, BUSINESS_MODELS, MANAGED_BY, STATES } from './lookupsSeed';
+import { LOOKUP_DATA, BUSINESS_MODELS, MANAGED_BY, STATES, TICKET_TYPES } from './lookupsSeed';
 import { MAIN_SERVICES_DATA, SUB_SERVICES_DATA } from './mainServicesSeed';
 import { MAINTENANCE_SERVICES_DATA } from './maintenanceServicesSeed';
 import { TICKETS_DATA } from './ticketsSeed';
@@ -136,6 +136,107 @@ export const seedLookups = async (force: boolean = false): Promise<void> => {
     }
   } catch (error: any) {
     console.error('   ❌ Error seeding lookups:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Seed only ticket types
+ */
+export const seedTicketTypes = async (): Promise<void> => {
+  try {
+    console.log('\n🌱 Seeding ticket types...');
+
+    // Check if table exists first
+    try {
+      await Lookup.count();
+    } catch (error: any) {
+      if (error.message && error.message.includes('does not exist')) {
+        console.log('   ⚠️  Lookups table does not exist yet. Please run migrations first.');
+        console.log('   💡 Run: npm run migrate:up');
+        return;
+      }
+      throw error;
+    }
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    let updatedCount = 0;
+
+    for (const lookup of TICKET_TYPES) {
+      try {
+        // Check if lookup with this ID already exists
+        const existing = await Lookup.findByPk(lookup.id);
+        if (existing) {
+          // Update existing lookup if it's different
+          const needsUpdate = 
+            existing.category !== lookup.category ||
+            existing.code !== lookup.code ||
+            existing.description !== lookup.description ||
+            existing.isActive !== lookup.isActive ||
+            existing.isDefault !== lookup.isDefault ||
+            existing.name !== lookup.name ||
+            existing.nameArabic !== lookup.nameArabic ||
+            existing.orderId !== lookup.orderId ||
+            existing.parentLookupId !== lookup.parentLookupId;
+
+          if (needsUpdate) {
+            await existing.update({
+              category: lookup.category,
+              code: lookup.code,
+              description: lookup.description,
+              icon: (lookup as any).icon || null,
+              isActive: lookup.isActive,
+              isDefault: lookup.isDefault,
+              name: lookup.name,
+              nameArabic: lookup.nameArabic,
+              orderId: lookup.orderId,
+              parentLookupId: lookup.parentLookupId,
+            });
+            updatedCount++;
+          } else {
+            skippedCount++;
+          }
+          continue;
+        }
+
+        // Create new lookup
+        await Lookup.create({
+          category: lookup.category,
+          code: lookup.code,
+          description: lookup.description,
+          icon: (lookup as any).icon || null,
+          id: lookup.id,
+          isActive: lookup.isActive,
+          isDefault: lookup.isDefault,
+          name: lookup.name,
+          nameArabic: lookup.nameArabic,
+          orderId: lookup.orderId,
+          parentLookupId: lookup.parentLookupId,
+        });
+        createdCount++;
+      } catch (error: any) {
+        // Handle duplicate key errors gracefully
+        if (error.name === 'SequelizeUniqueConstraintError' || 
+            (error.parent && error.parent.code === '23505')) {
+          skippedCount++;
+          continue;
+        }
+        console.error(`   ⚠️  Error creating ticket type ${lookup.id} (${lookup.name}):`, error.message);
+      }
+    }
+
+    if (skippedCount > 0) {
+      console.log(`   ⚠️  Skipped ${skippedCount} existing ticket types.`);
+    }
+    if (updatedCount > 0) {
+      console.log(`   🔄 Updated ${updatedCount} existing ticket types.`);
+    }
+
+    console.log(`   ✅ Seeded ${createdCount} new ticket types`);
+    console.log(`   📊 Total ticket types: ${TICKET_TYPES.length}`);
+  } catch (error: any) {
+    console.error('   ❌ Error seeding ticket types:', error.message);
     throw error;
   }
 };

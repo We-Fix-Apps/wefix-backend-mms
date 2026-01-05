@@ -12,6 +12,7 @@ import {
   updateBranchesTeamLeaderLookupIds,
   seedUsers,
   seedZones,
+  seedTicketTypes,
 } from './seedFunctions';
 import { addSaltBranchZones } from './addSaltBranchZones';
 import { addZarqaBranchZones } from './addZarqaBranchZones';
@@ -166,6 +167,9 @@ export const runSeed = async (seedName: string, force: boolean = false): Promise
         break;
       case 'tickets':
         await seedTickets(force);
+        break;
+      case 'ticketTypes':
+        await seedTicketTypes();
         break;
       default:
         throw new Error(`Unknown seed name: ${seedName}`);

@@ -878,6 +878,18 @@ export const TICKET_TYPES: readonly LookupData[] = [
     orderId: 2,
     parentLookupId: null,
   },
+  {
+    category: LookupCategory.TICKET_TYPE,
+    code: 'DCLN',
+    description: 'Deep cleaning ticket',
+    id: 206,
+    isActive: true,
+    isDefault: false,
+    name: 'Deep Cleaning',
+    nameArabic: 'تنظيف عميق',
+    orderId: 3,
+    parentLookupId: null,
+  },
 ];
 
 // Ticket Statuses
