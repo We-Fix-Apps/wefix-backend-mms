@@ -162,10 +162,12 @@ export const verifyOTP = asyncHandler(async (req: AuthRequest, res: Response) =>
 
   try {
     // Call backend-shms OTP verification service
+    // Trim OTP to handle any whitespace issues
+    const trimmedOTP = typeof otp === 'string' ? otp.trim() : String(otp).trim();
     const shmsUrl = process.env.BACKEND_SHMS_URL || 'http://backend-shms:4003';
     const response = await axios.post(`${shmsUrl}/api/v1/otp/verify`, {
       mobile,
-      otp,
+      otp: trimmedOTP,
       serviceName: 'business-services',
     });
 
