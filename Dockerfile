@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* ./
 
 # Install dependencies
-RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+RUN if [ -f yarn.lock ]; then yarn install; \
     elif [ -f package-lock.json ]; then npm ci; \
     else yarn install; \
     fi
@@ -27,7 +27,7 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* ./
 
 # Install all dependencies (including dev dependencies for scripts)
-RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+RUN if [ -f yarn.lock ]; then yarn install; \
     elif [ -f package-lock.json ]; then npm ci; \
     else yarn install; \
     fi
