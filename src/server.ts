@@ -222,16 +222,22 @@ export class Server {
       // File doesn't exist locally, check if request comes from another backend proxy
       // Prevent infinite loop: if request comes from another backend proxy, don't proxy again
       const proxyFrom = req.headers['x-proxy-from'] || req.headers['X-Proxy-From'];
-      if (proxyFrom === 'backend-oms' || proxyFrom === 'backend-tmms') {
+      if (proxyFrom === 'backend-oms' || proxyFrom === 'backend-tmms' || proxyFrom === 'backend-shms') {
         return next(); // Pass to 404 handler
       }
       
       // File doesn't exist locally and not from proxy, try to proxy from other backends
-      // Try backend-oms first, then backend-tmms if not found
-      // This ensures files uploaded via other backends are accessible from backend-mms
+      // Try backend-shms first (primary file storage), then backend-oms, then backend-tmms
+      // This ensures files uploaded via backend-shms are accessible from backend-mms
       const tryProxyFromBackend = async (baseUrl: string, backendName: string): Promise<boolean> => {
         return new Promise((resolve) => {
-          const proxyUrl = `${baseUrl}/WeFixFiles${req.path}`;
+          // Normalize path for backend-shms: convert lowercase 'tickets' to uppercase 'Tickets'
+          let normalizedPath = req.path;
+          if (backendName === 'backend-shms') {
+            normalizedPath = normalizedPath.replace(/\/tickets\//i, '/Tickets/');
+          }
+          
+          const proxyUrl = `${baseUrl}/WeFixFiles${normalizedPath}`;
           const urlModule = require('url');
           const parsedUrl = urlModule.parse(proxyUrl);
           const client = parsedUrl.protocol === 'https:' ? https : http;
@@ -270,7 +276,14 @@ export class Server {
         });
       };
       
-      // Try backend-oms first
+      // Try backend-shms first (primary file storage service)
+      const shmsBaseUrl = process.env.BACKEND_SHMS_URL || 'http://backend-shms:4003';
+      const foundInShms = await tryProxyFromBackend(shmsBaseUrl, 'backend-shms');
+      if (foundInShms) {
+        return; // File found and proxied from backend-shms
+      }
+      
+      // If not found in backend-shms, try backend-oms (legacy)
       const omsBaseUrl = process.env.OMS_BASE_URL;
       if (omsBaseUrl) {
         const found = await tryProxyFromBackend(omsBaseUrl, 'backend-oms');
@@ -279,7 +292,7 @@ export class Server {
         }
       }
       
-      // If not found in backend-oms, try backend-tmms
+      // If not found in backend-oms, try backend-tmms (legacy)
       const tmmsBaseUrl = process.env.TMMS_BASE_URL;
       if (tmmsBaseUrl) {
         const found = await tryProxyFromBackend(tmmsBaseUrl, 'backend-tmms');

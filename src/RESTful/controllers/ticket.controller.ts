@@ -13,6 +13,7 @@ import { User } from '../../db/models/user.model';
 import { Zone } from '../../db/models/zone.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { AppError, asyncHandler } from '../middleware/error.middleware';
+import fileProxyService from '../services/File/fileProxyService';
 
 
 /**
@@ -917,87 +918,20 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   // Update ticket with the generated code
   await ticket.update({ ticketCodeId });
 
-  // Link files to ticket and move to ticket folder if fileIds are provided
+  // Link files to ticket in backend-shms if fileIds are provided
   if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
-    // Get all files that need to be moved
-    const files = await File.findAll({
-      where: {
-        id: { [Op.in]: fileIds },
-      },
-    });
-
-    // Create ticket-specific folder
-    const ticketFolder = path.join(process.cwd(), 'public', 'WeFixFiles', 'tickets', String(ticket.id));
-    if (!fs.existsSync(ticketFolder)) {
-      fs.mkdirSync(ticketFolder, { recursive: true });
-    }
-
-    // Move files and update paths
-    for (const file of files) {
-      const oldPath = (file as any).path || (file as any).filePath;
-      const fileName = (file as any).filename || path.basename(oldPath || '');
-      const newPath = `/WeFixFiles/tickets/${ticket.id}/${fileName}`;
-      const newFilePath = path.join(ticketFolder, fileName);
-
-      // Skip if file is already in the correct location
-      if (fs.existsSync(newFilePath)) {
-        // File already in correct location, just update database
-      } else if (oldPath && !oldPath.includes(`/tickets/${ticket.id}/`)) {
-        // Files uploaded before ticket creation are saved to Contracts or Images
-        // Search in all possible locations
-        const searchPaths = [
-          // Try the path from database first
-          oldPath.startsWith('/') 
-            ? path.join(process.cwd(), 'public', oldPath.replace(/^\//, ''))
-            : path.join(process.cwd(), 'public', oldPath),
-          // Always check Contracts and Images folders
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Contracts', fileName),
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Images', fileName),
-        ];
-        
-        let fileFound = false;
-        for (const searchPath of searchPaths) {
-          if (fs.existsSync(searchPath)) {
-            // Ensure destination directory exists
-            if (!fs.existsSync(ticketFolder)) {
-              fs.mkdirSync(ticketFolder, { recursive: true });
-            }
-            // Move file to ticket folder
-            fs.renameSync(searchPath, newFilePath);
-            fileFound = true;
-            break;
-          }
-        }
-        
-        if (!fileFound) {
-          console.warn(`[CreateTicket-MMS] File not found at any expected location for: ${fileName}`);
-        }
-      } else if (!fs.existsSync(newFilePath)) {
-        // File path already points to ticket folder but file doesn't exist there
-        // Try to find it in Contracts/Images and move it
-        const searchPaths = [
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Contracts', fileName),
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Images', fileName),
-        ];
-        
-        for (const searchPath of searchPaths) {
-          if (fs.existsSync(searchPath)) {
-            if (!fs.existsSync(ticketFolder)) {
-              fs.mkdirSync(ticketFolder, { recursive: true });
-            }
-            fs.renameSync(searchPath, newFilePath);
-            break;
-          }
-        }
-      }
-
-      // Update file record with new path and link to ticket
-      await file.update({
-        entityId: ticket.id,
-        entityType: 'ticket',
-        path: newPath,
-        filePath: newPath,
-      } as any);
+    try {
+      // Update file records in backend-shms to link them to this ticket
+      await fileProxyService.updateFilesByIds(
+        fileIds,
+        'ticket',
+        ticket.id,
+        user.id
+      );
+      console.log(`[CreateTicket-MMS] Updated ${fileIds.length} file(s) in backend-shms for ticket ${ticket.id}`);
+    } catch (error: any) {
+      console.error('[CreateTicket-MMS] Error updating files in backend-shms:', error);
+      // Continue even if file update fails - files are already uploaded
     }
   }
 
@@ -1257,87 +1191,20 @@ export const updateTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   await ticket.save();
 
-  // Link files to ticket and move to ticket folder if fileIds are provided
+  // Link files to ticket in backend-shms if fileIds are provided
   if (fileIds !== undefined && Array.isArray(fileIds) && fileIds.length > 0) {
-    // Get all files that need to be moved
-    const files = await File.findAll({
-      where: {
-        id: { [Op.in]: fileIds },
-      },
-    });
-
-    // Create ticket-specific folder
-    const ticketFolder = path.join(process.cwd(), 'public', 'WeFixFiles', 'tickets', String(ticket.id));
-    if (!fs.existsSync(ticketFolder)) {
-      fs.mkdirSync(ticketFolder, { recursive: true });
-    }
-
-    // Move files and update paths
-    for (const file of files) {
-      const oldPath = (file as any).path || (file as any).filePath;
-      const fileName = (file as any).filename || path.basename(oldPath || '');
-      const newPath = `/WeFixFiles/tickets/${ticket.id}/${fileName}`;
-      const newFilePath = path.join(ticketFolder, fileName);
-
-      // Skip if file is already in the correct location
-      if (fs.existsSync(newFilePath)) {
-        // File already in correct location, just update database
-      } else if (oldPath && !oldPath.includes(`/tickets/${ticket.id}/`)) {
-        // Files uploaded before ticket update are saved to Contracts or Images
-        // Search in all possible locations
-        const searchPaths = [
-          // Try the path from database first
-          oldPath.startsWith('/') 
-            ? path.join(process.cwd(), 'public', oldPath.replace(/^\//, ''))
-            : path.join(process.cwd(), 'public', oldPath),
-          // Always check Contracts and Images folders
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Contracts', fileName),
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Images', fileName),
-        ];
-        
-        let fileFound = false;
-        for (const searchPath of searchPaths) {
-          if (fs.existsSync(searchPath)) {
-            // Ensure destination directory exists
-            if (!fs.existsSync(ticketFolder)) {
-              fs.mkdirSync(ticketFolder, { recursive: true });
-            }
-            // Move file to ticket folder
-            fs.renameSync(searchPath, newFilePath);
-            fileFound = true;
-            break;
-          }
-        }
-        
-        if (!fileFound) {
-          console.warn(`[UpdateTicket-MMS] File not found at any expected location for: ${fileName}`);
-        }
-      } else if (!fs.existsSync(newFilePath)) {
-        // File path already points to ticket folder but file doesn't exist there
-        // Try to find it in Contracts/Images and move it
-        const searchPaths = [
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Contracts', fileName),
-          path.join(process.cwd(), 'public', 'WeFixFiles', 'Images', fileName),
-        ];
-        
-        for (const searchPath of searchPaths) {
-          if (fs.existsSync(searchPath)) {
-            if (!fs.existsSync(ticketFolder)) {
-              fs.mkdirSync(ticketFolder, { recursive: true });
-            }
-            fs.renameSync(searchPath, newFilePath);
-            break;
-          }
-        }
-      }
-
-      // Update file record with new path and link to ticket
-      await file.update({
-        entityId: ticket.id,
-        entityType: 'ticket',
-        path: newPath,
-        filePath: newPath,
-      } as any);
+    try {
+      // Update file records in backend-shms to link them to this ticket
+      await fileProxyService.updateFilesByIds(
+        fileIds,
+        'ticket',
+        ticket.id,
+        user.id
+      );
+      console.log(`[UpdateTicket-MMS] Updated ${fileIds.length} file(s) in backend-shms for ticket ${ticket.id}`);
+    } catch (error: any) {
+      console.error('[UpdateTicket-MMS] Error updating files in backend-shms:', error);
+      // Continue even if file update fails - files are already uploaded
     }
   }
 

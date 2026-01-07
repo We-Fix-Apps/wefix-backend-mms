@@ -13,6 +13,7 @@ interface DecodedToken extends JwtPayload {
 import { AppError, asyncHandler } from '../middleware/error.middleware';
 import UserRepository from '../services/user/user.repository';
 import multer from 'multer';
+import fileProxyService from '../services/File/fileProxyService';
 
 // Configure multer for profile image uploads
 // Store in WeFixFiles/Images to match backend-oms structure for single source of truth
@@ -577,14 +578,54 @@ export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response
 
   // Handle file upload (profileImage)
   if (req.file) {
-    // File was uploaded via multer
-    const filename = req.file.filename;
-    // Store relative path matching backend-oms structure: /WeFixFiles/Images/filename.ext
-    // This ensures single source of truth - both backend-mms and backend-oms use same path
-    updateData.profileImage = `/WeFixFiles/Images/${filename}`;
+    try {
+      // Proxy upload to backend-shms
+      const uploadResult = await fileProxyService.proxyUpload(req.file, {
+        filename: req.file.filename,
+        category: 'image',
+        entityType: 'user',
+        entityId: parseInt(userId),
+      }, parseInt(userId));
+      
+      // Use the path from backend-shms
+      updateData.profileImage = uploadResult.path || uploadResult.filePath || `/WeFixFiles/Users/${userId}/${req.file.filename}`;
+      
+      // Update file record in backend-shms to link it to this user
+      try {
+        await fileProxyService.updateFileEntity(
+          updateData.profileImage,
+          'user',
+          parseInt(userId),
+          parseInt(userId)
+        );
+      } catch (error: any) {
+        console.error('[UpdateProfile] Error updating file entity in backend-shms:', error);
+        // Continue even if file update fails - file is already uploaded
+      }
+    } catch (error: any) {
+      console.error('[UpdateProfile] Error proxying upload to backend-shms:', error);
+      // Fallback to local storage
+      const filename = req.file.filename;
+      updateData.profileImage = `/WeFixFiles/Users/${userId}/${filename}`;
+    }
   } else if (req.body.profileImage) {
     // Profile image URL/path provided as string (for backward compatibility)
     updateData.profileImage = req.body.profileImage;
+    
+    // If it's a new path, update file record in backend-shms
+    if (updateData.profileImage && updateData.profileImage.startsWith('/WeFixFiles/')) {
+      try {
+        await fileProxyService.updateFileEntity(
+          updateData.profileImage,
+          'user',
+          parseInt(userId),
+          parseInt(userId)
+        );
+      } catch (error: any) {
+        console.error('[UpdateProfile] Error updating file entity in backend-shms:', error);
+        // Continue even if file update fails
+      }
+    }
   }
 
   // Update user
