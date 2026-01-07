@@ -95,6 +95,12 @@ export const getCompanyTickets = asyncHandler(async (req: AuthRequest, res: Resp
         required: false,
         attributes: ['id', 'fullName', 'userNumber', 'profileImage'],
       },
+      {
+        model: Company,
+        as: 'delegatedToCompany',
+        required: false,
+        attributes: ['id', 'title'],
+      },
     ],
     order: [['createdAt', 'DESC']],
     limit,
@@ -351,6 +357,12 @@ export const getTicketById = asyncHandler(async (req: AuthRequest, res: Response
   const ticket = await Ticket.findOne({
     where: whereClause,
     include: [
+      {
+        model: Company,
+        as: 'delegatedToCompany',
+        required: false,
+        attributes: ['id', 'title'],
+      },
       {
         model: Lookup,
         as: 'ticketTypeLookup',
@@ -636,6 +648,13 @@ function formatTicket(ticket: Ticket): any {
           userNumber: ticket.updater.userNumber,
         }
       : null,
+    delegatedToCompanyId: ticket.delegatedToCompanyId,
+    delegatedToCompany: ticket.delegatedToCompany
+      ? {
+          id: ticket.delegatedToCompany.id,
+          title: ticket.delegatedToCompany.title,
+        }
+      : null,
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
   };
@@ -696,6 +715,26 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   const isEmergency = ticketType.name.toLowerCase() === 'emergency' || 
                       ticketType.code === 'EMRG';
 
+  // Verify contract belongs to user's company and fetch with lookups (needed to check delegation)
+  const contract = await Contract.findOne({
+    where: { id: contractId, companyId },
+    include: [
+      { model: Lookup, as: 'businessModelLookup', required: false },
+      { model: Lookup, as: 'managedByLookup', required: false },
+    ],
+  });
+  if (!contract) {
+    throw new AppError('Invalid contract or contract does not belong to your company', 400, 'VALIDATION_ERROR');
+  }
+
+  // Determine if ticket should be delegated to WeFix
+  const WEFIX_COMPANY_ID = 39;
+  const WEFIX_TEAM_LOOKUP_ID = 27; // Managed By: WeFix Team
+
+  // Hide Team Leader and Technician when managed by WeFix Team (regardless of business model)
+  const isManagedByWeFix = contract.managedByLookupId === WEFIX_TEAM_LOOKUP_ID;
+  const isDelegatedToWeFix = isManagedByWeFix;
+
   // Validation - Emergency tickets now have time slots (current time + 120 minutes)
   // Ticket title is required
   const missingFields: string[] = [];
@@ -707,8 +746,13 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   if (!ticketDate) missingFields.push('ticketDate');
   if (!ticketTimeFrom) missingFields.push('ticketTimeFrom');
   if (!ticketTimeTo) missingFields.push('ticketTimeTo');
-  if (!assignToTeamLeaderId) missingFields.push('assignToTeamLeaderId');
-  if (!assignToTechnicianId) missingFields.push('assignToTechnicianId');
+  
+  // Only require Team Leader and Technician if NOT delegated to WeFix
+  if (!isDelegatedToWeFix) {
+    if (!assignToTeamLeaderId) missingFields.push('assignToTeamLeaderId');
+    if (!assignToTechnicianId) missingFields.push('assignToTechnicianId');
+  }
+  
   if (!mainServiceId) missingFields.push('mainServiceId');
   if (!ticketTitle || ticketTitle.trim() === '') missingFields.push('ticketTitle');
   
@@ -742,7 +786,8 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
 
   // Role-based validation: Team Leaders CANNOT create tickets for another Team Leader
   // They can ONLY assign tickets to themselves (their own user ID)
-  if (user.userRoleId === 20 && assignToTeamLeaderId !== user.id) {
+  // Only validate if NOT delegated to WeFix
+  if (!isDelegatedToWeFix && user.userRoleId === 20 && assignToTeamLeaderId !== user.id) {
     throw new AppError(
       'Team Leaders can only create tickets assigned to themselves. You cannot assign tickets to another Team Leader.',
       403,
@@ -750,10 +795,32 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     );
   }
 
-  // Verify contract belongs to user's company
-  const contract = await Contract.findByPk(contractId);
-  if (!contract || contract.companyId !== companyId) {
-    throw new AppError('Invalid contract or contract does not belong to your company', 400, 'VALIDATION_ERROR');
+  // If delegated to WeFix, assignments are optional
+  let delegatedToCompanyId: number | null = null;
+  let finalAssignToTeamLeaderId: number | null = null;
+  let finalAssignToTechnicianId: number | null = null;
+
+  if (isDelegatedToWeFix) {
+    // If explicitly provided in request body, use it; otherwise default to WeFix company ID
+    const requestedDelegatedCompanyId = req.body.delegatedToCompanyId || WEFIX_COMPANY_ID;
+    
+    // Verify the delegated company exists before setting it
+    const delegatedCompany = await Company.findByPk(requestedDelegatedCompanyId);
+    if (delegatedCompany) {
+      delegatedToCompanyId = requestedDelegatedCompanyId;
+    } else {
+      // If company doesn't exist, log warning but don't fail (delegation is optional)
+      console.warn(`Warning: Delegated company with ID ${requestedDelegatedCompanyId} does not exist. Setting delegatedToCompanyId to null.`);
+      delegatedToCompanyId = null;
+    }
+    
+    // For delegated tickets, assignments are optional (will be assigned by WeFix admin later)
+    finalAssignToTeamLeaderId = assignToTeamLeaderId || null;
+    finalAssignToTechnicianId = assignToTechnicianId || null;
+  } else {
+    // For non-delegated tickets, assignments are required
+    finalAssignToTeamLeaderId = assignToTeamLeaderId;
+    finalAssignToTechnicianId = assignToTechnicianId;
   }
 
   // Verify branch belongs to user's company
@@ -768,30 +835,34 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     throw new AppError('Invalid zone or zone does not belong to the selected branch', 400, 'VALIDATION_ERROR');
   }
 
-  // Verify Team Leader belongs to user's company and has Team Leader role
-  const teamLeader = await User.findOne({
-    where: { id: assignToTeamLeaderId, companyId, isDeleted: false },
-    include: [{ model: Lookup, as: 'userRoleLookup', required: false }],
-  });
-  if (!teamLeader) {
-    throw new AppError('Team Leader not found or does not belong to your company', 400, 'VALIDATION_ERROR');
-  }
-  if (teamLeader.userRoleId !== 20) {
-    throw new AppError('Assigned user is not a Team Leader', 400, 'VALIDATION_ERROR');
+  // Verify Team Leader belongs to user's company and has Team Leader role (only if not delegated)
+  if (!isDelegatedToWeFix && finalAssignToTeamLeaderId) {
+    const teamLeader = await User.findOne({
+      where: { id: finalAssignToTeamLeaderId, companyId, isDeleted: false },
+      include: [{ model: Lookup, as: 'userRoleLookup', required: false }],
+    });
+    if (!teamLeader) {
+      throw new AppError('Team Leader not found or does not belong to your company', 400, 'VALIDATION_ERROR');
+    }
+    if (teamLeader.userRoleId !== 20) {
+      throw new AppError('Assigned user is not a Team Leader', 400, 'VALIDATION_ERROR');
+    }
   }
 
-  // Verify Technician belongs to user's company and has Technician role
-  const technician = await User.findOne({
-    where: { id: assignToTechnicianId, companyId, isDeleted: false },
-    include: [{ model: Lookup, as: 'userRoleLookup', required: false }],
-  });
-  if (!technician) {
-    throw new AppError('Technician not found or does not belong to your company', 400, 'VALIDATION_ERROR');
-  }
-  // Technician role ID is typically 21 or 22 (check your lookup table)
-  // For now, we'll just verify they're not a Team Leader or Admin
-  if (technician.userRoleId === 18 || technician.userRoleId === 20) {
-    throw new AppError('Assigned user cannot be an Admin or Team Leader', 400, 'VALIDATION_ERROR');
+  // Verify Technician belongs to user's company and has Technician role (only if not delegated)
+  if (!isDelegatedToWeFix && finalAssignToTechnicianId) {
+    const technician = await User.findOne({
+      where: { id: finalAssignToTechnicianId, companyId, isDeleted: false },
+      include: [{ model: Lookup, as: 'userRoleLookup', required: false }],
+    });
+    if (!technician) {
+      throw new AppError('Technician not found or does not belong to your company', 400, 'VALIDATION_ERROR');
+    }
+    // Technician role ID is typically 21 or 22 (check your lookup table)
+    // For now, we'll just verify they're not a Team Leader or Admin
+    if (technician.userRoleId === 18 || technician.userRoleId === 20) {
+      throw new AppError('Assigned user cannot be an Admin or Team Leader', 400, 'VALIDATION_ERROR');
+    }
   }
 
   // Ticket type already verified above
@@ -824,8 +895,9 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     ticketDate,
     ticketTimeFrom, // Emergency tickets now have time slots (current time + 120 minutes)
     ticketTimeTo, // Emergency tickets now have time slots (current time + 120 minutes)
-    assignToTeamLeaderId,
-    assignToTechnicianId,
+    assignToTeamLeaderId: finalAssignToTeamLeaderId,
+    assignToTechnicianId: finalAssignToTechnicianId,
+    delegatedToCompanyId: delegatedToCompanyId,
     ticketDescription: ticketDescription || '',
     havingFemaleEngineer: havingFemaleEngineer || false,
     customerName: customerName || null,
@@ -936,6 +1008,7 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
       { model: Lookup, as: 'ticketStatusLookup', required: false },
       { model: Lookup, as: 'mainServiceLookup', required: false },
       { model: User, as: 'assignToTechnicianUser', required: false, attributes: ['id', 'fullName', 'userNumber', 'profileImage'] },
+      { model: Company, as: 'delegatedToCompany', required: false, attributes: ['id', 'title'] },
     ],
   });
 

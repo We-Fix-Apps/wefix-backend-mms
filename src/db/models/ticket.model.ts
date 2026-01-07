@@ -128,7 +128,7 @@ export class Ticket extends Model {
 
   @ForeignKey(() => User)
   @Column({
-    allowNull: false,
+    allowNull: true,
     type: DataTypes.INTEGER,
   })
   public assignToTeamLeaderId: number;
@@ -138,13 +138,24 @@ export class Ticket extends Model {
 
   @ForeignKey(() => User)
   @Column({
-    allowNull: false,
+    allowNull: true,
     type: DataTypes.INTEGER,
   })
   public assignToTechnicianId: number;
 
   @BelongsTo(() => User, { foreignKey: 'assignToTechnicianId', as: 'assignToTechnicianUser' })
   public assignToTechnicianUser: User;
+
+  @ForeignKey(() => Company)
+  @Column({
+    allowNull: true,
+    type: DataTypes.INTEGER,
+    comment: 'Company ID to which this ticket is delegated (e.g., WeFix company ID 39)',
+  })
+  public delegatedToCompanyId: number | null;
+
+  @BelongsTo(() => Company, { foreignKey: 'delegatedToCompanyId', as: 'delegatedToCompany' })
+  public delegatedToCompany: Company | null;
 
   @Column({
     allowNull: true,
