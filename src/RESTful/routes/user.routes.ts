@@ -6,7 +6,9 @@ import { authenticateToken } from '../middleware/auth.middleware';
 const router = express.Router();
 
 // Public routes
-router.post('/login', userController.login);
+router.post('/login', userController.login); // Deprecated - use request-otp and verify-otp
+router.post('/request-otp', userController.requestOTP);
+router.post('/verify-otp', userController.verifyOTP);
 router.post('/logout', authenticateToken, userController.logout);
 router.post('/register', userController.createUser);
 router.post('/refresh-token', userController.refreshAccessToken);

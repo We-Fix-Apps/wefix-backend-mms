@@ -2,6 +2,7 @@ import { Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
+import axios from 'axios';
 
 import { generateRefreshToken, generateToken } from '../../lib';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -62,11 +63,83 @@ export const upload = multer({
 
 const userRepository = new UserRepository();
 
-export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { deviceId, email, fcmToken, password } = req.body;
+/**
+ * Request OTP for phone-based authentication (Business Services)
+ * POST /api/v1/user/request-otp
+ * Body: { mobile: string, deviceId: string, fcmToken: string }
+ */
+export const requestOTP = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { mobile, deviceId, fcmToken } = req.body;
 
-  if (!email || !password) {
-    throw new AppError('Email and password are required', 400, 'VALIDATION_ERROR');
+  if (!mobile) {
+    throw new AppError('Mobile number is required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (!deviceId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Device ID is not provided',
+      status: false,
+    });
+  }
+
+  if (!fcmToken) {
+    return res.status(400).json({
+      success: false,
+      message: 'FCM token is not provided',
+      status: false,
+    });
+  }
+
+  try {
+    // Call backend-shms OTP service
+    const shmsUrl = process.env.BACKEND_SHMS_URL || 'http://backend-shms:4003';
+    const response = await axios.post(`${shmsUrl}/api/v1/otp/request`, {
+      mobile,
+      serviceName: 'business-services',
+    });
+
+    if (response.data.success) {
+      res.status(200).json({
+        success: true,
+        message: response.data.message || 'OTP sent successfully',
+        status: true,
+        ...(process.env.NODE_ENV !== 'production' && { otp: response.data.otp }),
+      });
+    } else {
+      res.status(response.status || 400).json({
+        success: false,
+        message: response.data.message || 'Failed to send OTP',
+        status: false,
+      });
+    }
+  } catch (error: any) {
+    if (error.response) {
+      // Backend-shms returned an error
+      return res.status(error.response.status || 400).json({
+        success: false,
+        message: error.response.data?.message || 'Failed to send OTP',
+        status: false,
+      });
+    }
+    throw new AppError(
+      error.message || 'Failed to request OTP',
+      500,
+      'OTP_REQUEST_ERROR'
+    );
+  }
+});
+
+/**
+ * Verify OTP and authenticate user (Business Services)
+ * POST /api/v1/user/verify-otp
+ * Body: { mobile: string, otp: string, deviceId: string, fcmToken: string }
+ */
+export const verifyOTP = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { mobile, otp, deviceId, fcmToken } = req.body;
+
+  if (!mobile || !otp) {
+    throw new AppError('Mobile number and OTP are required', 400, 'VALIDATION_ERROR');
   }
 
   if (!deviceId) {
@@ -88,39 +161,84 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const user = await userRepository.authenticateUser(email, password, deviceId, fcmToken);
+    // Call backend-shms OTP verification service
+    const shmsUrl = process.env.BACKEND_SHMS_URL || 'http://backend-shms:4003';
+    const response = await axios.post(`${shmsUrl}/api/v1/otp/verify`, {
+      mobile,
+      otp,
+      serviceName: 'business-services',
+    });
 
-    if (!user) {
-      return res.status(401).json({
+    if (!response.data.success || !response.data.user) {
+      // Determine status code based on error type
+      let statusCode = 400;
+      if (response.data.message?.includes('expired')) {
+        statusCode = 410; // 410 Gone
+      } else if (response.data.message?.includes('locked')) {
+        statusCode = 423; // 423 Locked
+      } else if (response.data.message?.includes('Invalid OTP')) {
+        statusCode = 401; // 401 Unauthorized
+      } else if (response.data.message?.includes('Access denied')) {
+        statusCode = 403; // 403 Forbidden
+      }
+
+      return res.status(statusCode).json({
         success: false,
-        message: 'Invalid login credentials',
+        message: response.data.message || 'OTP verification failed',
+        status: false,
         user: null,
         token: null,
       });
     }
 
+    // Get user from backend-shms response
+    const shmsUser = response.data.user;
+
+    // Find user in backend-mms database to get full user data
+    const user = await userRepository.getUserById(shmsUser.id.toString());
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+        user: null,
+        token: null,
+      });
+    }
+
+    // Update FCM token and device ID
+    await userRepository.updateUserById(shmsUser.id.toString(), {
+      fcmToken,
+      deviceId,
+    });
+
+    // Generate tokens
     const accessToken = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
     // Calculate token expiration time from JWT
     const decodedToken = jwt.decode(accessToken) as { exp?: number; iat?: number } | null;
-    const tokenExpiresAt = decodedToken?.exp 
-      ? new Date(decodedToken.exp * 1000) 
-      : new Date(Date.now() + 3600 * 1000); // Default to 1 hour if can't decode
+    const tokenExpiresAt = decodedToken?.exp
+      ? new Date(decodedToken.exp * 1000)
+      : new Date(Date.now() + 3600 * 1000); // Default to 1 hour
 
-    // Calculate expiresIn in seconds from the actual token expiration
     const expiresIn = decodedToken?.exp && decodedToken?.iat
       ? decodedToken.exp - decodedToken.iat
       : decodedToken?.exp
       ? Math.max(0, decodedToken.exp - Math.floor(Date.now() / 1000))
-      : 3600; // Default to 1 hour if can't decode
+      : 3600;
 
     // Save accessToken to database with prefix "mobile-access-token-mms:"
-    await userRepository.updateUserToken(user.id.toString(), `mobile-access-token-mms:${accessToken}`, tokenExpiresAt);
+    await userRepository.updateUserToken(
+      user.id.toString(),
+      `mobile-access-token-mms:${accessToken}`,
+      tokenExpiresAt
+    );
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
+      status: true,
       user,
       token: {
         accessToken,
@@ -130,19 +248,45 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    // Check if it's an inactive account error
-    if (error.isInactive && error.message) {
-      return res.status(403).json({
+    if (error.response) {
+      // Backend-shms returned an error
+      let statusCode = error.response.status || 400;
+      if (error.response.data?.message?.includes('expired')) {
+        statusCode = 410;
+      } else if (error.response.data?.message?.includes('locked')) {
+        statusCode = 423;
+      } else if (error.response.data?.message?.includes('Invalid OTP')) {
+        statusCode = 401;
+      }
+
+      return res.status(statusCode).json({
         success: false,
-        message: error.message,
+        message: error.response.data?.message || 'OTP verification failed',
+        status: false,
         user: null,
         token: null,
       });
     }
-    
-    // For other authentication errors, throw AppError to be handled by asyncHandler
-    throw new AppError(error.message || 'Invalid login credentials', 401, 'AUTHENTICATION_ERROR');
+    throw new AppError(
+      error.message || 'Failed to verify OTP',
+      500,
+      'OTP_VERIFICATION_ERROR'
+    );
   }
+});
+
+/**
+ * Legacy login endpoint - kept for backward compatibility but deprecated
+ * Use requestOTP and verifyOTP instead
+ */
+export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Redirect to OTP flow
+  return res.status(400).json({
+    success: false,
+    message: 'Email/password login is no longer supported. Please use phone number and OTP.',
+    user: null,
+    token: null,
+  });
 });
 
 export const refreshAccessToken = asyncHandler(async (req: AuthRequest, res: Response) => {
