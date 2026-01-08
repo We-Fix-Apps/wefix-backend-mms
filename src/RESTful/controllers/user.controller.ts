@@ -92,6 +92,36 @@ export const requestOTP = asyncHandler(async (req: AuthRequest, res: Response) =
     });
   }
 
+  // Check if user exists and is a technician or sub-technician
+  // Role IDs: 21 = Technician, 22 = Sub-Technician
+  // These roles should not be allowed to access mobile-user app
+  try {
+    const user = await userRepository.getUserByPhone(mobile);
+    
+    if (user) {
+      // Check if user is a technician or sub-technician
+      if (user.userRoleId === 21) {
+        return res.status(403).json({
+          success: false,
+          message: 'Technicians are not allowed to login to this system.',
+          status: false,
+        });
+      }
+      
+      if (user.userRoleId === 22) {
+        return res.status(403).json({
+          success: false,
+          message: 'Sub-Technicians are not allowed to login to this system.',
+          status: false,
+        });
+      }
+    }
+  } catch (error: any) {
+    // If user lookup fails, continue with OTP request (user might not exist yet)
+    // This allows new users to register
+    console.log('User lookup error (continuing):', error.message);
+  }
+
   try {
     // Call backend-shms OTP service
     const shmsUrl = process.env.BACKEND_SHMS_URL || 'http://backend-shms:4003';

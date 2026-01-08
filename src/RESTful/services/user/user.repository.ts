@@ -24,6 +24,7 @@ class UserRepository {
   public getStudentsInCourseActivity: (courseId: string, activityId: string) => Promise<UserOrm[]>;
   public getStudentInCourseActivity: (activityId: string, studentId: string) => Promise<UserOrm>;
   public getStudentsDeviceTokensForCourse: (courseId: string) => Promise<UserOrm[]>;
+  public getUserByPhone: (phoneNumber: string) => Promise<UserOrm | null>;
 
   constructor() {
     this.authenticateUser = this._authenticateUser.bind(this);
@@ -36,6 +37,7 @@ class UserRepository {
     this.validateRefreshToken = this._validateRefreshToken.bind(this);
     this.updateUserToken = this._updateUserToken.bind(this);
     this.clearUserToken = this._clearUserToken.bind(this);
+    this.getUserByPhone = this._getUserByPhone.bind(this);
   }
 
   private async _authenticateUser(
@@ -233,6 +235,98 @@ class UserRepository {
       }
     } catch (error) {
       throw new Error(`Failed to clear user token with ID ${id}: ${error.message}`);
+    }
+  }
+
+  private async _getUserByPhone(phoneNumber: string): Promise<UserOrm | null> {
+    try {
+      // Normalize phone number: remove spaces, dashes, parentheses
+      let normalizedPhone = phoneNumber.trim().replace(/[\s\-\(\)]/g, '');
+      
+      // Extract country code and mobile number
+      let countryCode: string | null = null;
+      let mobileNumber: string = normalizedPhone;
+      
+      // If phone starts with +, extract country code
+      if (normalizedPhone.startsWith('+')) {
+        // Try to extract country code (common codes: +1, +20, +44, +962, etc.)
+        // For Jordan (+962), mobile number starts after +962
+        if (normalizedPhone.startsWith('+962')) {
+          countryCode = '+962';
+          mobileNumber = normalizedPhone.substring(4); // Remove +962
+        } else if (normalizedPhone.startsWith('+1')) {
+          countryCode = '+1';
+          mobileNumber = normalizedPhone.substring(2);
+        } else if (normalizedPhone.startsWith('+20')) {
+          countryCode = '+20';
+          mobileNumber = normalizedPhone.substring(3);
+        } else if (normalizedPhone.startsWith('+44')) {
+          countryCode = '+44';
+          mobileNumber = normalizedPhone.substring(3);
+        } else {
+          // For other country codes, try to extract (assume 1-3 digits after +)
+          const match = normalizedPhone.match(/^\+(\d{1,3})(.+)$/);
+          if (match) {
+            countryCode = `+${match[1]}`;
+            mobileNumber = match[2];
+          }
+        }
+      } else if (normalizedPhone.startsWith('00')) {
+        // Handle 00 prefix (international format without +)
+        if (normalizedPhone.startsWith('00962')) {
+          countryCode = '+962';
+          mobileNumber = normalizedPhone.substring(5);
+        } else {
+          // Try to extract country code (assume 1-3 digits after 00)
+          const match = normalizedPhone.match(/^00(\d{1,3})(.+)$/);
+          if (match) {
+            countryCode = `+${match[1]}`;
+            mobileNumber = match[2];
+          }
+        }
+      }
+      
+      // First try: match both countryCode and mobileNumber
+      let user: any = null;
+      if (countryCode) {
+        user = await User.findOne({
+          where: {
+            mobileNumber: mobileNumber,
+            countryCode: countryCode,
+          },
+        });
+      }
+      
+      // Second try: match just mobileNumber (in case countryCode is null or different)
+      if (!user) {
+        user = await User.findOne({
+          where: {
+            mobileNumber: mobileNumber,
+          },
+        });
+      }
+      
+      // Third try: match with full number without + (for backward compatibility)
+      if (!user && normalizedPhone.startsWith('+')) {
+        user = await User.findOne({
+          where: {
+            mobileNumber: normalizedPhone.substring(1),
+          },
+        });
+      }
+      
+      // Fourth try: match with full normalized number as-is
+      if (!user) {
+        user = await User.findOne({
+          where: {
+            mobileNumber: normalizedPhone,
+          },
+        });
+      }
+      
+      return user as UserOrm | null;
+    } catch (error) {
+      throw new Error(`Failed to find user by phone number: ${error.message}`);
     }
   }
 }
