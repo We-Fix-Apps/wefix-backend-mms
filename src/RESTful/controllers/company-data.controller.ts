@@ -324,13 +324,55 @@ export const getCompanyZones = asyncHandler(async (req: AuthRequest, res: Respon
 
 /**
  * Get main services (lookups with category MAIN_SERVICE)
+ * Optionally filter by contractId - if provided, only return services from contract's company maintenance services
  */
 export const getMainServices = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const {user} = req;
+  const contractId = req.query.contractId as string | undefined;
+
+  let allowedMainServiceIds: number[] | null = null;
+
+  // If contractId is provided, filter by contract's company maintenance services
+  if (contractId) {
+    const { Contract } = await import('../../db/models/contract.model');
+    const { MaintenanceService } = await import('../../db/models/maintenance-service.model');
+
+    const contract = await Contract.findOne({
+      where: {
+        id: parseInt(contractId),
+        isDeleted: false,
+      },
+    });
+
+    if (contract) {
+      // Get all maintenance services for the contract's company
+      const maintenanceServices = await MaintenanceService.findAll({
+        where: {
+          itemId: contract.companyId,
+          itemType: 'company',
+          isActive: true,
+          isDeleted: false,
+        },
+        attributes: ['mainServiceId'],
+        group: ['mainServiceId'], // Get unique main service IDs
+      });
+
+      allowedMainServiceIds = maintenanceServices.map((ms) => ms.mainServiceId);
+    }
+  }
+
+  const whereClause: any = {
+    category: LookupCategory.MAIN_SERVICE,
+    isActive: true,
+  };
+
+  // If we have allowed main service IDs, filter by them
+  if (allowedMainServiceIds && allowedMainServiceIds.length > 0) {
+    whereClause.id = { [Op.in]: allowedMainServiceIds };
+  }
+
   const services = await Lookup.findAll({
-    where: {
-      category: LookupCategory.MAIN_SERVICE,
-      isActive: true,
-    },
+    where: whereClause,
     order: [['orderId', 'ASC']],
   });
 
@@ -354,9 +396,49 @@ export const getMainServices = asyncHandler(async (req: AuthRequest, res: Respon
 /**
  * Get sub services (lookups with category SUB_SERVICE)
  * Optionally filter by parentServiceId if provided as query param
+ * Optionally filter by contractId - if provided, only return services from contract's company maintenance services
  */
 export const getSubServices = asyncHandler(async (req: AuthRequest, res: Response) => {
   const parentServiceId = req.query.parentServiceId as string | undefined;
+  const contractId = req.query.contractId as string | undefined;
+
+  let allowedSubServiceIds: number[] | null = null;
+
+  // If contractId is provided, filter by contract's company maintenance services
+  if (contractId) {
+    const { Contract } = await import('../../db/models/contract.model');
+    const { MaintenanceService } = await import('../../db/models/maintenance-service.model');
+
+    const contract = await Contract.findOne({
+      where: {
+        id: parseInt(contractId),
+        isDeleted: false,
+      },
+    });
+
+    if (contract) {
+      const whereClause: any = {
+        itemId: contract.companyId,
+        itemType: 'company',
+        isActive: true,
+        isDeleted: false,
+      };
+
+      // If parentServiceId is provided, also filter by mainServiceId
+      if (parentServiceId) {
+        whereClause.mainServiceId = parseInt(parentServiceId);
+      }
+
+      // Get all maintenance services for the contract's company
+      const maintenanceServices = await MaintenanceService.findAll({
+        where: whereClause,
+        attributes: ['subServiceId'],
+        group: ['subServiceId'], // Get unique sub service IDs
+      });
+
+      allowedSubServiceIds = maintenanceServices.map((ms) => ms.subServiceId);
+    }
+  }
 
   const whereClause: any = {
     category: LookupCategory.SUB_SERVICE,
@@ -366,6 +448,11 @@ export const getSubServices = asyncHandler(async (req: AuthRequest, res: Respons
   // If parentServiceId is provided, filter by parentLookupId
   if (parentServiceId) {
     whereClause.parentLookupId = parseInt(parentServiceId);
+  }
+
+  // If we have allowed sub service IDs, filter by them
+  if (allowedSubServiceIds && allowedSubServiceIds.length > 0) {
+    whereClause.id = { [Op.in]: allowedSubServiceIds };
   }
 
   const services = await Lookup.findAll({
