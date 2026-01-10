@@ -221,6 +221,7 @@ export const verifyOTP = asyncHandler(async (req: AuthRequest, res: Response) =>
       return res.status(statusCode).json({
         success: false,
         message: response.data.message || 'OTP verification failed',
+        messageAr: response.data.messageAr,
         status: false,
         user: null,
         token: null,
@@ -298,6 +299,7 @@ export const verifyOTP = asyncHandler(async (req: AuthRequest, res: Response) =>
       return res.status(statusCode).json({
         success: false,
         message: error.response.data?.message || 'OTP verification failed',
+        messageAr: error.response.data?.messageAr,
         status: false,
         user: null,
         token: null,
