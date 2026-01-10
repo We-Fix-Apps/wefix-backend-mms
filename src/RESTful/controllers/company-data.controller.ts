@@ -40,7 +40,6 @@ export const getCompanyContracts = asyncHandler(async (req: AuthRequest, res: Re
     contractReference: contract.contractReference,
     contractTitle: contract.contractTitle,
     businessModelLookupId: contract.businessModelLookupId,
-    managedByLookupId: contract.managedByLookupId,
   }));
 
   res.status(200).json({

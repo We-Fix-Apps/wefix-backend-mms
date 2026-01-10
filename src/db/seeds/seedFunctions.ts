@@ -4,7 +4,7 @@ import { QueryTypes } from 'sequelize';
 import { BRANCHES_DATA } from './branchesSeed';
 import { COMPANIES_DATA } from './companiesSeed';
 import { CONTRACTS_DATA } from './contractsSeed';
-import { LOOKUP_DATA, BUSINESS_MODELS, MANAGED_BY, STATES, TICKET_TYPES } from './lookupsSeed';
+import { LOOKUP_DATA, BUSINESS_MODELS, STATES, TICKET_TYPES } from './lookupsSeed';
 import { MAIN_SERVICES_DATA, SUB_SERVICES_DATA } from './mainServicesSeed';
 import { MAINTENANCE_SERVICES_DATA } from './maintenanceServicesSeed';
 import { TICKETS_DATA } from './ticketsSeed';
@@ -868,7 +868,6 @@ export const seedContracts = async (force: boolean = false): Promise<void> => {
           isActive: contractData.isActive,
           numberOfTeamLeaders: contractData.numberOfTeamLeaders,
           numberOfBranches: contractData.numberOfBranches,
-          numberOfPreventiveTickets: contractData.numberOfPreventiveTickets,
           numberOfCorrectiveTickets: contractData.numberOfCorrectiveTickets,
           contractStartDate: contractData.contractStartDate,
           contractEndDate: contractData.contractEndDate,
@@ -1447,12 +1446,9 @@ export const seedAdditionalLookups = async (force: boolean = false): Promise<voi
   try {
     console.log('\n🌱 Seeding additional lookups...');
 
-    // Seed business models and managed by
+    // Seed business models
     const existingBusinessModels = await Lookup.count({
       where: { category: LookupCategory.BUSINESS_MODEL },
-    });
-    const existingManagedBy = await Lookup.count({
-      where: { category: LookupCategory.MANAGED_BY },
     });
 
     if (existingBusinessModels === 0 || force) {
@@ -1492,45 +1488,6 @@ export const seedAdditionalLookups = async (force: boolean = false): Promise<voi
         }
       }
       console.log(`   ✅ Seeded business models: ${createdCount} created, ${skippedCount} skipped`);
-    }
-
-    if (existingManagedBy === 0 || force) {
-      if (force) {
-        // Temporarily disable foreign key checks
-        await Lookup.sequelize?.query(`SET session_replication_role = 'replica';`);
-        
-        await Lookup.destroy({ where: { category: LookupCategory.MANAGED_BY }, force: true });
-        
-        // Re-enable foreign key checks
-        await Lookup.sequelize?.query(`SET session_replication_role = 'origin';`);
-      }
-      let createdCount = 0;
-      let skippedCount = 0;
-      
-      for (const item of MANAGED_BY) {
-        try {
-          const existing = await Lookup.findByPk(item.id);
-          if (existing) {
-            if (force) {
-              await existing.update(item as any);
-              createdCount++;
-            } else {
-              skippedCount++;
-            }
-            continue;
-          }
-          await Lookup.create(item as any);
-          createdCount++;
-        } catch (error: any) {
-          if (error.name === 'SequelizeUniqueConstraintError' || 
-              (error.parent && error.parent.code === '23505')) {
-            skippedCount++;
-            continue;
-          }
-          console.error(`   ⚠️  Error creating managed by ${item.id}:`, error.message);
-        }
-      }
-      console.log(`   ✅ Seeded managed by items: ${createdCount} created, ${skippedCount} skipped`);
     }
 
     // Seed main services and sub services

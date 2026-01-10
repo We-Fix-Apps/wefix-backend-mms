@@ -54,16 +54,6 @@ export class Contract extends Model {
   @BelongsTo(() => Lookup, { foreignKey: 'businessModelLookupId', as: 'businessModelLookup' })
   public businessModelLookup: Lookup;
 
-  @ForeignKey(() => Lookup)
-  @Column({
-    allowNull: true,
-    type: DataTypes.INTEGER,
-  })
-  public managedByLookupId: number | null;
-
-  @BelongsTo(() => Lookup, { foreignKey: 'managedByLookupId', as: 'managedByLookup' })
-  public managedByLookup: Lookup | null;
-
   @Column({
     allowNull: false,
     defaultValue: true,
@@ -84,13 +74,6 @@ export class Contract extends Model {
     type: DataTypes.INTEGER,
   })
   public numberOfBranches: number;
-
-  @Column({
-    allowNull: false,
-    defaultValue: 0,
-    type: DataTypes.INTEGER,
-  })
-  public numberOfPreventiveTickets: number;
 
   @Column({
     allowNull: false,

@@ -6,7 +6,6 @@ export interface ContractSeedData {
   isActive: boolean;
   numberOfTeamLeaders: number;
   numberOfBranches: number;
-  numberOfPreventiveTickets: number;
   numberOfCorrectiveTickets: number;
   contractStartDate: Date | null;
   contractEndDate: Date | null;
@@ -21,20 +20,18 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 2,
     numberOfBranches: 3,
-    numberOfPreventiveTickets: 12,
     numberOfCorrectiveTickets: 24,
     contractStartDate: new Date('2025-01-01'),
     contractEndDate: new Date('2025-12-31'),
     contractValue: 334121.50,
     contractFiles: null,
-    contractDescription: 'Annual maintenance contract for 2025 covering preventive and corrective maintenance services.',
+    contractDescription: 'Annual maintenance contract for 2025 covering corrective maintenance services.',
   },
   {
     contractTitle: 'Service Agreement 2023-2025',
     isActive: false,
     numberOfTeamLeaders: 1,
     numberOfBranches: 2,
-    numberOfPreventiveTickets: 6,
     numberOfCorrectiveTickets: 12,
     contractStartDate: new Date('2023-02-23'),
     contractEndDate: new Date('2025-04-07'),
@@ -47,7 +44,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 3,
     numberOfBranches: 5,
-    numberOfPreventiveTickets: 24,
     numberOfCorrectiveTickets: 48,
     contractStartDate: new Date('2024-06-01'),
     contractEndDate: new Date('2026-05-31'),
@@ -60,7 +56,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 1,
     numberOfBranches: 1,
-    numberOfPreventiveTickets: 4,
     numberOfCorrectiveTickets: 8,
     contractStartDate: new Date('2024-09-15'),
     contractEndDate: new Date('2025-09-14'),
@@ -73,7 +68,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 5,
     numberOfBranches: 8,
-    numberOfPreventiveTickets: 36,
     numberOfCorrectiveTickets: 72,
     contractStartDate: new Date('2024-01-01'),
     contractEndDate: new Date('2026-12-31'),
@@ -86,7 +80,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 1,
     numberOfBranches: 2,
-    numberOfPreventiveTickets: 3,
     numberOfCorrectiveTickets: 6,
     contractStartDate: new Date('2025-01-01'),
     contractEndDate: new Date('2025-03-31'),
@@ -99,7 +92,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 4,
     numberOfBranches: 6,
-    numberOfPreventiveTickets: 18,
     numberOfCorrectiveTickets: 36,
     contractStartDate: new Date('2024-03-01'),
     contractEndDate: new Date('2027-02-28'),
@@ -112,7 +104,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 2,
     numberOfBranches: 3,
-    numberOfPreventiveTickets: 8,
     numberOfCorrectiveTickets: 16,
     contractStartDate: new Date('2024-11-01'),
     contractEndDate: new Date('2025-10-31'),
@@ -125,7 +116,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: false,
     numberOfTeamLeaders: 1,
     numberOfBranches: 1,
-    numberOfPreventiveTickets: 0,
     numberOfCorrectiveTickets: 12,
     contractStartDate: new Date('2023-07-01'),
     contractEndDate: new Date('2024-06-30'),
@@ -138,7 +128,6 @@ export const CONTRACTS_DATA: readonly Omit<ContractSeedData, 'companyId' | 'busi
     isActive: true,
     numberOfTeamLeaders: 3,
     numberOfBranches: 4,
-    numberOfPreventiveTickets: 16,
     numberOfCorrectiveTickets: 32,
     contractStartDate: new Date('2024-08-01'),
     contractEndDate: new Date('2026-07-31'),

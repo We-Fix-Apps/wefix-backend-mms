@@ -349,34 +349,6 @@ export const BUSINESS_MODELS: readonly LookupData[] = [
   },
 ];
 
-// Managed By
-export const MANAGED_BY: readonly LookupData[] = [
-  {
-    category: LookupCategory.MANAGED_BY,
-    code: null,
-    description: 'Managed by client team',
-    id: 205,
-    isActive: true,
-    isDefault: false,
-    name: 'Client Team',
-    nameArabic: 'فريق العميل',
-    orderId: 1,
-    parentLookupId: null,
-  },
-  {
-    category: LookupCategory.MANAGED_BY,
-    code: null,
-    description: 'Managed by WeFix team',
-    id: 27,
-    isActive: true,
-    isDefault: true,
-    name: 'WeFix Team',
-    nameArabic: 'فريق وي فيكس',
-    orderId: 2,
-    parentLookupId: null,
-  },
-];
-
 // Main Services
 // Main services have been moved to lookups table with category 'MainService'
 // See subServicesSeed.ts for sub services
@@ -949,7 +921,6 @@ export const LOOKUP_DATA: readonly LookupData[] = [
   ...COUNTRIES,
   ...STATES,
   ...ESTABLISHED_TYPES,
-  ...MANAGED_BY,
   ...COMPANY_ROLES,
   ...USER_ROLES,
   ...TICKET_CODES,

@@ -721,7 +721,6 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
     where: { id: contractId, companyId },
     include: [
       { model: Lookup, as: 'businessModelLookup', required: false },
-      { model: Lookup, as: 'managedByLookup', required: false },
     ],
   });
   if (!contract) {
@@ -729,12 +728,14 @@ export const createTicket = asyncHandler(async (req: AuthRequest, res: Response)
   }
 
   // Determine if ticket should be delegated to WeFix
+  // B2B (businessModelLookupId = 24) -> delegated to WeFix Team
+  // White Label (businessModelLookupId = 25) -> managed by Client Team
   const WEFIX_COMPANY_ID = 39;
-  const WEFIX_TEAM_LOOKUP_ID = 27; // Managed By: WeFix Team
+  const B2B_BUSINESS_MODEL_ID = 24;
+  const WHITE_LABEL_BUSINESS_MODEL_ID = 25;
 
-  // Hide Team Leader and Technician when managed by WeFix Team (regardless of business model)
-  const isManagedByWeFix = contract.managedByLookupId === WEFIX_TEAM_LOOKUP_ID;
-  const isDelegatedToWeFix = isManagedByWeFix;
+  // Hide Team Leader and Technician for B2B (always delegated to WeFix)
+  const isDelegatedToWeFix = contract.businessModelLookupId === B2B_BUSINESS_MODEL_ID;
 
   // Validation - Emergency tickets now have time slots (current time + 120 minutes)
   // Ticket title is required
