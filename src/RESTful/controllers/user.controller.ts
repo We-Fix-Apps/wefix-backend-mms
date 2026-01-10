@@ -136,12 +136,14 @@ export const requestOTP = asyncHandler(async (req: AuthRequest, res: Response) =
         message: response.data.message || 'OTP sent successfully',
         status: true,
         ...(process.env.NODE_ENV !== 'production' && { otp: response.data.otp }),
+        ...(response.data.messageAr && { messageAr: response.data.messageAr }),
       });
     } else {
       res.status(response.status || 400).json({
         success: false,
         message: response.data.message || 'Failed to send OTP',
         status: false,
+        ...(response.data.messageAr && { messageAr: response.data.messageAr }),
       });
     }
   } catch (error: any) {
@@ -151,6 +153,7 @@ export const requestOTP = asyncHandler(async (req: AuthRequest, res: Response) =
         success: false,
         message: error.response.data?.message || 'Failed to send OTP',
         status: false,
+        ...(error.response.data?.messageAr && { messageAr: error.response.data.messageAr }),
       });
     }
     throw new AppError(
