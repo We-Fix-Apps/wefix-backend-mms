@@ -1,7 +1,7 @@
 import { QueryInterface } from 'sequelize';
 
 export const up = async (queryInterface: QueryInterface) => {
-  // Check if column exists
+  // Check if column exists before removing
   const tableDescription = await queryInterface.describeTable('contracts');
   
   if (tableDescription.managed_by_lookup_id) {
@@ -24,17 +24,19 @@ export const up = async (queryInterface: QueryInterface) => {
 };
 
 export const down = async (queryInterface: QueryInterface) => {
+  // Check if column exists before adding
   const tableDescription = await queryInterface.describeTable('contracts');
   
   if (!tableDescription.managed_by_lookup_id) {
     const { DataTypes } = await import('sequelize');
     
+    // Add the column back
     await queryInterface.addColumn('contracts', 'managed_by_lookup_id', {
       allowNull: true,
       type: DataTypes.INTEGER,
     });
 
-    // Add foreign key constraint to lookups table
+    // Add foreign key constraint
     try {
       await queryInterface.addConstraint('contracts', {
         fields: ['managed_by_lookup_id'],

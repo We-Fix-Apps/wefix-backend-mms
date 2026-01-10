@@ -83,6 +83,20 @@ export class Contract extends Model {
   public numberOfCorrectiveTickets: number;
 
   @Column({
+    allowNull: false,
+    defaultValue: 0,
+    type: DataTypes.INTEGER,
+  })
+  public numberOfEmergencyTickets: number;
+
+  @Column({
+    allowNull: false,
+    defaultValue: 1,
+    type: DataTypes.INTEGER,
+  })
+  public numberOfDeepCleaningTickets: number;
+
+  @Column({
     allowNull: true,
     get: getDate('contractStartDate'),
     set: setDate('contractStartDate'),
