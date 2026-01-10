@@ -1,6 +1,24 @@
 import { QueryInterface, DataTypes } from 'sequelize';
 
 export const up = async (queryInterface: QueryInterface) => {
+  // Helper to check if table exists
+  const tableExists = async (tableName: string): Promise<boolean> => {
+    try {
+      await queryInterface.describeTable(tableName);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const lookupsTableExists = await tableExists('lookups');
+
+  if (!lookupsTableExists) {
+    console.log('ℹ️  lookups table does not exist yet, skipping icon column addition');
+    console.log('ℹ️  This column will be added when the lookups table is created by its own migration');
+    return;
+  }
+
   const tableDescription = await queryInterface.describeTable('lookups');
 
   // Add icon column if it doesn't exist
@@ -17,6 +35,23 @@ export const up = async (queryInterface: QueryInterface) => {
 };
 
 export const down = async (queryInterface: QueryInterface) => {
+  // Helper to check if table exists
+  const tableExists = async (tableName: string): Promise<boolean> => {
+    try {
+      await queryInterface.describeTable(tableName);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const lookupsTableExists = await tableExists('lookups');
+
+  if (!lookupsTableExists) {
+    console.log('ℹ️  lookups table does not exist, skipping icon column removal');
+    return;
+  }
+
   const tableDescription = await queryInterface.describeTable('lookups');
 
   // Remove icon column if it exists

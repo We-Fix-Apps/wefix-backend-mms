@@ -46,21 +46,29 @@ export const up = async (queryInterface: QueryInterface) => {
       await queryInterface.renameColumn('files', 'id_new', 'id');
       console.log('✓ Renamed id_new to id');
       
-      // Step 6: Make id NOT NULL and set as primary key
+      // Step 6: Make id NOT NULL, set as primary key, and configure auto-increment
+      // First, make it NOT NULL
       await queryInterface.changeColumn('files', 'id', {
         allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
         type: DataTypes.INTEGER,
       });
-      console.log('✓ Set id as primary key with auto-increment');
+      console.log('✓ Set id as NOT NULL');
       
       // Step 7: Update the sequence to be owned by the id column and set as default
       await queryInterface.sequelize.query(`
         ALTER SEQUENCE files_id_new_seq OWNED BY files.id;
+        ALTER TABLE files ALTER COLUMN id SET DEFAULT nextval('files_id_new_seq');
         SELECT setval('files_id_new_seq', COALESCE((SELECT MAX(id) FROM files), 0) + 1, false);
       `);
       console.log('✓ Updated sequence for auto-increment');
+      
+      // Step 8: Add primary key constraint
+      await queryInterface.addConstraint('files', {
+        fields: ['id'],
+        type: 'primary key',
+        name: 'files_pkey',
+      });
+      console.log('✓ Set id as primary key');
       
     } else if (idType && idType.toLowerCase().includes('integer')) {
       console.log('Note: id is already INTEGER, no changes needed');
